@@ -26,31 +26,16 @@ async function main() {
   console.log("🌱 Seeding superadmin user...");
   await prisma.user.create({
     data: {
-      user_email: "superadmin@crm.com",
-      user_name: "VSPH Superadmin",
+      user_email: "superadmin@vsph.in",
+      user_name: "Super Admin",
       user_role: "SUPER_ADMIN",
-      user_department: "SALES",
-      user_password: await hashPassword("0000"),
+      user_department: "ADMIN",
+      user_password: await hashPassword("1dmin123456"),
       user_status: true,
       tenant_fk: null,
     },
   });
   console.log("✅ Superadmin seeded!");
-
-  console.log("🌱 Seeding client user...");
-  await prisma.user.create({
-    data: {
-      user_email: "client@vsph.com",
-      user_name: "Client User",
-      user_role: "ADMIN",
-      user_department: "SALES",
-      user_password: await hashPassword("0000"),
-      user_status: true,
-      user_is_tenant_owner: true,
-      tenant_fk: tenant.tenant_id,
-    },
-  });
-  console.log("✅ Client user seeded!");
 
   console.log("✅ All seeds completed successfully!");
 }
