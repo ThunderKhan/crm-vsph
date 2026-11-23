@@ -2,6 +2,7 @@ import { prisma } from "../lib/prisma.js";
 import { CLIENT_ROLES } from "../lib/onboarding.logic.js";
 import { hashPassword } from "../lib/passwords.js";
 import { upsertCrmEntitlement } from "../services/entitlement.service.js";
+import { sendInvitationEmail } from "../services/email.service.js";
 
 const tenantInclude = {
   tenant_entitlements: {
@@ -281,6 +282,18 @@ export const createTenantUser = async (req, res) => {
         tenant_fk: id,
       },
     });
+
+    // Send welcome email with login credentials
+    try {
+      await sendInvitationEmail({
+        to: user_email,
+        name: user_name || user_email.split("@")[0],
+        organizationName: tenant.tenant_name || "your organization",
+        inviteUrl: `${process.env.INVITATION_BASE_URL || "http://localhost:5173"}/v2/login`,
+      });
+    } catch (emailError) {
+      console.error("Welcome email failed (user still created):", emailError.message);
+    }
 
     res.status(201).json({ success: true, message: "User created successfully", data: user });
   } catch (error) {
