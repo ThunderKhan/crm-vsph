@@ -1,13 +1,13 @@
 import { prisma } from "../lib/prisma.js";
 import { findOrCreateIndustry } from "../lib/industries.js";
-import { account_type } from "@prisma/client";
 import { getTenantFilter } from "../middleware/auth.middleware.js";
+
+// Fallback account types until an AccountType enum is added to the Prisma schema
+const ACCOUNT_TYPES = ["Customer", "Partner", "Reseller", "Vendor", "Other"];
 
 export const getAccountTypes = async (req, res) => {
   try {
-    // Prisma exposes enums as objects, so we get the values
-    const types = Object.values(account_type);
-    res.status(200).json({ success: true, data: types });
+    res.status(200).json({ success: true, data: ACCOUNT_TYPES });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server Error" });
   }
