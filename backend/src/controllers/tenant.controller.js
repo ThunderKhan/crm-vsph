@@ -283,13 +283,16 @@ export const createTenantUser = async (req, res) => {
       },
     });
 
-    // Send welcome email with login credentials
+    // Send welcome email with login credentials (direct account creation, no invitation token)
     try {
+      const loginUrl = `${process.env.INVITATION_BASE_URL || "http://localhost:5173"}/v2/login/client`;
       await sendInvitationEmail({
         to: user_email,
         name: user_name || user_email.split("@")[0],
         organizationName: tenant.tenant_name || "your organization",
-        inviteUrl: `${process.env.INVITATION_BASE_URL || "http://localhost:5173"}/v2/login`,
+        inviteUrl: loginUrl,
+        isDirectAccount: true,
+        password: user_password,
       });
     } catch (emailError) {
       console.error("Welcome email failed (user still created):", emailError.message);
