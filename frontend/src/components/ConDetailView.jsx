@@ -226,7 +226,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const recipients=[...new Set([contact?.contact_professional_email,contact?.contact_personal_email].filter(usableEmail))];
   const actions=[...(canCall ? [{id:"call",label:"Log a call"}] : []),...(canTask ? [{id:"task",label:"Create task"}] : []),{id:"email",label:"Compose email"}];
   return <div className="cw-workspace">
-    <nav className="cw-breadcrumb" aria-label="Breadcrumb"><button type="button" className="cw-back" onClick={closeWorkspace} disabled={!!pending}><ArrowLeft size={16}/> Contacts</button>{contact?.contact_code && <><span aria-hidden="true">/</span><span aria-current="page">{contact.contact_code}</span></>}</nav>
+    <nav className="cw-breadcrumb" aria-label="Breadcrumb"><button type="button" className="cw-back" onClick={closeWorkspace} disabled={!!pending}><ArrowLeft size={16}/> Contacts</button></nav>
     {loading ? <div className="cw-panel cw-empty" role="status">Loading contact…</div> : !contact ? <div className="cw-panel cw-empty"><h2>Contact unavailable</h2><p role="alert">{loadError || "Contact not found."}</p><button type="button" className="cw-button" onClick={()=>{setLoading(true);setRevision(v=>v+1);}}>Retry</button></div> : <>
       {loadError && <p className="cw-error" role="alert">{loadError}</p>}
       <section className="cw-panel cw-identity">

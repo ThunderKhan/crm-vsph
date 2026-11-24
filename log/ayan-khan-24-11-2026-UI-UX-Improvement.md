@@ -195,3 +195,7 @@ Local feedback identified ragged right-aligned values and awkward mid-address li
 ## 12. Contact identity simplification — 24 November 2026
 
 User approved removing the Connected/call-status indicator and duplicated owner text from the identity header. This supersedes the earlier header specification for those two fields. Retain contact owner in the summary and call status in expanded Additional information. Reduce the header height to fit the name, avatar, record code and existing permitted actions; vertically center the identity and actions. No data or workflow removed.
+
+## 13. Breadcrumb simplification — 24 November 2026
+
+Remove the duplicate contact record code and separator from the breadcrumb. Keep only the back-to-Contacts action; retain the code in the identity header and existing copy-ID action.
