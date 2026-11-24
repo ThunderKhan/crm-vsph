@@ -1,9 +1,14 @@
 import { prisma } from "../lib/prisma.js";
 import { getTenantFilter } from "../middleware/auth.middleware.js";
+import { canDoAction } from "../lib/modules.js";
+import { canAssignTaskTo } from "../lib/tasks.js";
+import { CALL_OUTCOMES, validateFollowup } from "../lib/contactActivities.js";
 
 export const createCall = async (req, res) => {
   try {
-    const { call_contact_fk, call_subject, call_description } = req.body;
+    const { call_contact_fk, call_subject, call_description, call_outcome, followup } = req.body;
+    if (call_outcome != null && !CALL_OUTCOMES.includes(call_outcome)) return res.status(400).json({success:false,message:"Invalid call outcome."});
+    if (followup && (!call_contact_fk || !canDoAction(req.user,"TASKS","CREATE"))) return res.status(403).json({success:false,message:"Follow-up requires task creation access and a linked contact."});
 
     // Resolve tenant: client users always use their own tenant; superadmin may specify one
     let tenantId = req.user.tenantFk;
@@ -35,17 +40,25 @@ export const createCall = async (req, res) => {
       }
     }
 
-    const newCall = await prisma.call.create({
-      data: {
-        tenant_fk: tenantId,
-        call_user_fk: callUserId,
-        call_contact_fk,
-        call_subject,
-        call_description,
-      },
+    let taskData = null;
+    if (followup) {
+      const validation = validateFollowup(followup);
+      if (validation.error) return res.status(400).json({success:false,message:validation.error});
+      const target = await prisma.user.findFirst({
+        where: {user_id:validation.data.task_user_fk,tenant_fk:tenantId,user_deleted_at:null,user_status:true},
+      });
+      if (!target || !canAssignTaskTo(req.user,target)) return res.status(403).json({success:false,message:"You cannot assign this follow-up to that user."});
+      taskData = {...validation.data,tenant_fk:tenantId,task_contact_fk:call_contact_fk,task_assigned_by_fk:req.user.id,task_status:"TODO",task_priority:"NORMAL"};
+    }
+    const callData = {tenant_fk:tenantId,call_user_fk:callUserId,call_contact_fk,call_subject,call_description,call_outcome:call_outcome ?? null};
+    // The call and its follow-up either both commit or neither does.
+    const result = await prisma.$transaction(async tx => {
+      const newCall = await tx.call.create({data:callData});
+      if (!taskData) return newCall;
+      const followupTask = await tx.task.create({data:{...taskData,task_call_fk:newCall.call_id},include:{user:{select:{user_id:true,user_name:true,user_role:true}}}});
+      return {...newCall,followup_task:followupTask};
     });
-
-    res.status(201).json(newCall);
+    res.status(201).json(result);
   } catch (error) {
     console.error("Error creating call:", error);
     res.status(500).json({ error: "Failed to create call" });

@@ -129,3 +129,7 @@ Expected 27 utility tests and 14 browser tests. Previous browser assertions unch
 ### BDE milestone 1
 
 Run all existing suites plus deadline/queue regression. Inspect upcoming and past groups, alphabetical global sorting, due filters, missing dates, search descriptions, task completion movement, restricted task visibility and responsive wrapping. Local rendered/build tests pending.
+
+### BDE milestone 2
+
+Apply migration only to disposable database first, generate Prisma, run backend tests; validate atomic linked task write including unauthorized/invalid assignee, cross-tenant contact, rejected request with no partial call, note isolation, manually logged timestamps, all activity filters, draft/error handling, mobile and keyboard. Verify existing calls and task history still work. No production migration performed.

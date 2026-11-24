@@ -3,7 +3,7 @@ export function selectionIndicator(container, selected) {
   return { x: selected.left - container.left, y: selected.bottom - container.top - 3, width: selected.width };
 }
 export function activityKey(kind, record) {
-  const id = kind === "call" ? record?.call_id : record?.task_id;
+  const id = kind === "call" ? record?.call_id : kind === "task" ? record?.task_id : record?.entry_id;
   return id ? kind + "-" + id : null;
 }
 export function requiredActivityFields(mode, draft) {

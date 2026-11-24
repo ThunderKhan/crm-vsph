@@ -112,3 +112,19 @@ test("task detail edits persist without altering status, progress or audit histo
   assert.equal((await s.request("PATCH",path,{task_user_fk:"unknown"})).success,false);
   assert.equal((await s.request("GET",path)).data.task_user_fk,"preview-user-2");
 });
+
+test("manual entries are isolated and follow-up creation is linked and atomic in preview",async()=>{
+  const s=make();
+  const entry=await s.request("POST","/api/contacts/"+full+"/activities",{entry_kind:"NOTE",entry_subject:"Budget",entry_description:"Annual contracts preferred"});
+  assert.ok(entry.data.entry_id);
+  assert.equal((await s.request("GET","/api/contacts/"+full+"/activities")).data.length,1);
+  assert.equal((await s.request("GET","/api/contacts/"+sparse+"/activities")).data.length,0);
+  const payload={call_contact_fk:full,call_subject:"Follow up call",call_description:"Discussed requirements",call_outcome:"CONNECTED"};
+  const bad=await s.request("POST","/api/calls",{...payload,followup:{subject:"",due:"invalid",assignee:"invalid"}});
+  assert.equal(bad.success,false);
+  assert.equal((await s.request("GET","/api/calls?contact_id="+full)).length,2);
+  const result=await s.request("POST","/api/calls",{...payload,followup:{subject:"Send quote",due:"2026-11-27T12:00:00Z",assignee:"preview-user-2"}});
+  assert.equal(result.followup_task.task_call_fk,result.call_id);
+  assert.equal(result.followup_task.task_contact_fk,full);
+  assert.equal((await s.request("GET","/api/tasks?contact_id="+full)).data.length,3);
+});

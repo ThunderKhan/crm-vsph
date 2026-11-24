@@ -48,6 +48,10 @@ export function activityHistory(calls, tasks, filter = "all", options = {}) {
   if (filter === "all" || filter === "task") {
     for (const record of tasks) items.push({ kind: "task", record, date: record.task_created_at });
   }
+  for (const record of options.entries || []) {
+    const kind=record.entry_kind.toLowerCase();
+    if(filter==="all"||filter===kind)items.push({kind,record,date:record.entry_occurred_at});
+  }
   // Alphabetical ties retain newest-first order, as in the original timeline.
   return selectActivity(items, options, true);
 }
@@ -90,8 +94,8 @@ function selectActivity(items, { query = "", status = "all", priority = "all", s
       continue;
     }
 
-    const subject = String((kind === "call" ? record.call_subject : record.task_subject) || "");
-    const description = kind === "call" ? record.call_description : record.task_description;
+    const subject = String((kind === "call" ? record.call_subject : kind === "task" ? record.task_subject : record.entry_subject) || "");
+    const description = kind === "call" ? record.call_description : kind === "task" ? record.task_description : record.entry_description;
     if (search && !subject.toLocaleLowerCase().includes(search) && !String(description || "").toLocaleLowerCase().includes(search)) continue;
 
     // Parse each matching record once instead of inside the sort comparator.

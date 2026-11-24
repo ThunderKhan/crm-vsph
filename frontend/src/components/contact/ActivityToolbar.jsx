@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { ArrowDownWideNarrow, ArrowUpWideNarrow, ArrowDownAZ, ArrowUpAZ, Check, ChevronDown, List, Mail, Phone, Plus, SlidersHorizontal, CheckCircle } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpWideNarrow, ArrowDownAZ, ArrowUpAZ, Check, ChevronDown, List, Mail, Phone, Plus, SlidersHorizontal, CheckCircle, StickyNote, Calendar, MessageSquare } from "lucide-react";
 
 import { menuFocusIndex } from "./contactMotionUtils.js";
 
@@ -63,7 +63,7 @@ export function ActivityFilters({open,onOpen,sort,setSort,status,setStatus,prior
 export function AddActivityMenu({actions,onSelect,onOpen}) {
   const [open,setOpen]=useState(false), [side,setSide]=useState("bottom");
   const root=useRef(null),trigger=useRef(null),menu=useRef(null),id=useId();
-  const icons={call:Phone,task:CheckCircle,email:Mail};
+  const icons={call:Phone,task:CheckCircle,email:Mail,note:StickyNote,"email-log":Mail,meeting:Calendar,linkedin:MessageSquare};
   const options=()=>Array.from(menu.current?.querySelectorAll('[role="menuitem"]')||[]);
   function show(last=false){onOpen?.();const rect=root.current?.closest(".cw-history-controls")?.getBoundingClientRect();setSide(rect&&window.innerHeight-rect.bottom<160&&rect.top>160?"top":"bottom");setOpen(true);requestAnimationFrame(()=>{const nodes=options();nodes[last?nodes.length-1:0]?.focus();});}
   function close(focus=false){setOpen(false);if(focus)trigger.current?.focus();}

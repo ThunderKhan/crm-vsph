@@ -97,10 +97,10 @@ function addresses(payload, prefix, previous=[]) {
 }
 
 export function createContactPreviewStore({ now = () => new Date().toISOString() } = {}) {
-  let contacts, calls, tasks, serial, failNext, delay, generation;
+  let contacts, calls, tasks, entries, serial, failNext, delay, generation;
   generation = 0;
   function reset() {
-    contacts = copy([full,sparse,long,reference]); calls = copy(seedCalls); tasks = copy(seedTasks);
+    contacts = copy([full,sparse,long,reference]); calls = copy(seedCalls); tasks = copy(seedTasks); entries=[];
     serial = 0; failNext = false; delay = 250; generation++;
   }
   reset();
@@ -126,12 +126,15 @@ export function createContactPreviewStore({ now = () => new Date().toISOString()
   function dispatch(method,endpoint,payload={}) {
     const {path,params} = parseEndpoint(endpoint);
     const query = String(params.search||params.q||"").toLowerCase();
+    const entryRoute = /^\/api\/contacts\/([^/]+)\/activities$/.exec(path);
+    const entryContact=entryRoute?contactById(decodeURIComponent(entryRoute[1])):null;
     const contactRoute = /^\/api\/contacts\/([^/]+)$/.exec(path);
     const contact = contactRoute ? contactById(decodeURIComponent(contactRoute[1])) : null;
     const taskRoute = /^\/api\/tasks\/([^/]+)$/.exec(path);
     const task = taskRoute ? tasks.find(t=>t.task_id===decodeURIComponent(taskRoute[1])) : null;
     if (method!=="GET" && failNext) { failNext=false; return fail("Simulated preview failure. Your data was not changed."); }
     if (method==="GET") {
+      if(entryRoute)return entryContact?paginate(entries.filter(e=>e.contact_fk===entryContact.contact_id),params):fail("Contact not found");
       if (path==="/api/contacts") return paginate(contacts.filter(c=>matches(c,query)),params);
       if (contactRoute) return contact ? ok(contact) : fail("Contact not found");
       if (path==="/api/calls") return calls.filter(c=>!params.contact_id||c.call_contact_fk===params.contact_id).sort((a,b)=>b.call_created_at.localeCompare(a.call_created_at));
@@ -159,9 +162,18 @@ export function createContactPreviewStore({ now = () => new Date().toISOString()
       contacts=contacts.filter(c=>c!==contact); calls=calls.filter(c=>c.call_contact_fk!==contact.contact_id); tasks=tasks.filter(t=>t.task_contact_fk!==contact.contact_id);
       return {success:true,message:"Contact deleted"};
     }
+    if(method==="POST"&&entryRoute){
+      if(!entryContact||!["NOTE","EMAIL","MEETING","LINKEDIN"].includes(payload.entry_kind)||!payload.entry_subject?.trim()||!payload.entry_description?.trim()||(payload.entry_occurred_at&&(!Number.isFinite(new Date(payload.entry_occurred_at).getTime())||new Date(payload.entry_occurred_at)>new Date(now()))))return fail("Invalid activity.");
+      const record={...payload,entry_id:id("entry"),contact_fk:entryContact.contact_id,entry_occurred_at:payload.entry_occurred_at||now(),entry_created_at:now(),user:PREVIEW_USER};entries.push(record);return ok(record);
+    }
     if (method==="POST" && path==="/api/calls") {
       if (!contactById(payload.call_contact_fk)||!String(payload.call_subject||"").trim()||!String(payload.call_description||"").trim()) return fail("Contact, subject and notes are required.");
-      const record={...payload,call_id:id("call"),call_user_fk:PREVIEW_USER.user_id,call_created_at:now(),user:PREVIEW_USER}; calls.push(record); return record;
+      const {followup,...callData}=payload;
+      const assignee=followup&&previewUsers.find(u=>u.user_id===followup.assignee);
+      if(followup&&(!assignee||!followup.subject?.trim()||!followup.due||!Number.isFinite(new Date(followup.due).getTime())))return fail("Invalid follow-up.");
+      const record={...callData,call_id:id("call"),call_user_fk:PREVIEW_USER.user_id,call_created_at:now(),user:PREVIEW_USER};
+      if(!followup){calls.push(record);return record;}
+      const task={task_id:id("task"),task_contact_fk:payload.call_contact_fk,task_call_fk:record.call_id,task_user_fk:assignee.user_id,task_subject:followup.subject,task_due_date:followup.due,task_status:"TODO",task_priority:"NORMAL",task_created_at:now(),user:assignee,task_updates:[]};calls.push(record);tasks.push(task);return {...record,followup_task:task};
     }
     if (method==="POST" && path==="/api/tasks") {
       if (!contactById(payload.task_contact_fk)||!String(payload.task_subject||"").trim()||!["LOW","NORMAL","HIGH"].includes(payload.task_priority)) return fail("Contact, subject and valid priority are required.");

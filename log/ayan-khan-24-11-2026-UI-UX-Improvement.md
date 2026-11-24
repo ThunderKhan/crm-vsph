@@ -263,3 +263,7 @@ Applied Cursor Deslop, Addy Osmani Code Simplification, Vercel React Best Practi
 ## 29. BDE milestone 1: actionable activity workspace
 
 Separate open work (due-order, no duplication) from historical calls/completed tasks for chronological views; alphabetical sorting remains global. Show deadline and overdue text on collapsed tasks, use neutral pending status, add due-date and assigned-to-me filters, search descriptions, expose role/record/call status and derived last logged call/next scheduled task. Summary explicitly refers to logged calls and visible tasks, not successful contact. Keep existing permissions, native dialogs, approved layout and motion. No new backend contracts in M1.
+
+## 30. BDE milestone 2: communication records and atomic call follow-ups
+
+Add nullable per-call outcome using existing enum and transactional linked task creation with server-side task permission and assignment checks; separate tenant-scoped manual note/email/meeting/LinkedIn records (no implied sending or scheduling). Existing role policy remains intact. Additive migration; do not run against production without approval. Existing API response preserved for call-only writes. Native dialogs, draft preservation and toolbar patterns reused; preview supports real-shaped writes. Full Prisma/MySQL/browser verification pending.

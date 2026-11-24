@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, MoreHorizontal, Phone, CheckCircle, FileText, Copy, Trash2, UserPlus, ChevronDown, Search, X } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, Phone, CheckCircle, FileText, Copy, Trash2, UserPlus, ChevronDown, Search, X, StickyNote, Mail, Calendar, MessageSquare } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../utils/api";
@@ -9,6 +9,7 @@ import AddContactModal from "./modals/AddContactModal";
 import ContactProperties, { Expandable } from "./contact/ContactProperties";
 import { SlidingTabs, CopyGlyph, useCopyFeedback, Tooltip, ContactSkeleton } from "./contact/ContactMotion";
 import { ActivityFilters, AddActivityMenu } from "./contact/ActivityToolbar";
+import { CallOutcomeFields, TaskAssigneeField, EntryFields } from "./contact/ContactActivityFields";
 import { ActivityComposerDialog } from "./contact/ActivityComposerDialog";
 import { ContactTaskEditor, TaskStatusControl } from "./contact/ContactTaskEditor";
 import { useDialogExit } from "./contact/useDialogExit";
@@ -18,7 +19,9 @@ import "./contact/contactWorkspace.css";
 
 const errorMessage = (response, fallback) => response?.message || response?.error || fallback;
 const blankTask = { subject:"", description:"", priority:"NORMAL", date:"", time:"12:00" };
-const blankCall = { subject:"", description:"" };
+const blankCall = { subject:"", description:"", outcome:"", followup:false, followupSubject:"", followupDate:"", followupTime:"12:00", assignee:"" };
+const blankEntry={subject:"",description:"",occurred:""};
+const entryModes={note:"NOTE", "email-log":"EMAIL", meeting:"MEETING", linkedin:"LINKEDIN"};
 const blankEmail = { subject:"", body:"", recipient:"" };
 
 function MoreActions({ canEdit, canDelete, onCampaign, onDelete, code }) {
@@ -110,49 +113,51 @@ function TaskCompletionMeta({ record }) {
 
 function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle, onTaskStatus, onTaskEdit, expanded, onExpand, alphabetical, now, upcoming=false }) {
   const {kind,record,date}=item;
-  const call=kind==="call", Icon=call?Phone:CheckCircle;
-  const subject=(call?record.call_subject:record.task_subject) || (call?"Call":"Untitled task");
-  const description=call?record.call_description:record.task_description;
+  const call=kind==="call", task=kind==="task";
+  const Icon=({call:Phone,task:CheckCircle,note:StickyNote,email:Mail,meeting:Calendar,linkedin:MessageSquare})[kind] || FileText;
+  const subject=(call?record.call_subject:task?record.task_subject:record.entry_subject) || (call?"Call":task?"Untitled task":"Activity");
+  const description=call?record.call_description:task?record.task_description:record.entry_description;
   const key=activityKey(kind,record), detailsId=useId();
-  const done=!call && record.task_status==="COMPLETED";
-  const deadline=call||done?null:taskDeadline(record,now);
-  const next=call ? null : nextTaskCompletion(record,taskAccess);
-  const updating=!call && !!taskWrites[record.task_id];
-  const taskError=!call && taskErrors[record.task_id];
+  const done=task && record.task_status==="COMPLETED";
+  const deadline=!task||done?null:taskDeadline(record,now);
+  const next=!task ? null : nextTaskCompletion(record,taskAccess);
+  const updating=task && !!taskWrites[record.task_id];
+  const taskError=task && taskErrors[record.task_id];
   // Mount secondary details on first expansion and retain them for the exit
   // animation. Historical audit requests are deferred until first disclosure.
   const [visited,setVisited]=useState(expanded);
   function toggle(){if(!expanded)setVisited(true);onExpand(key);}
   return <li className="cw-timeline-item" data-new={newActivity===key} data-completed={done}>
-    <span className="cw-event-icon"><Icon size={18} strokeWidth={2} aria-hidden="true"/><span className="cw-sr">{call?"Call":"Task"}</span></span>
+    <span className="cw-event-icon"><Icon size={18} strokeWidth={2} aria-hidden="true"/><span className="cw-sr">{humanize(kind)}</span></span>
     <div className="cw-event-content">
       <div className="cw-event-top">
         <button type="button" className="cw-event-disclosure" aria-label={`${expanded?"Collapse":"Expand"} details: ${subject}`} aria-expanded={expanded} aria-controls={detailsId} onClick={toggle}><ChevronDown className="cw-chevron" size={18} aria-hidden="true"/></button>
         <div className="cw-event-summary">
           <h3>{subject}</h3>
           <div className="cw-event-summary-meta">
-            {!call && <TaskStatusControl record={record} access={taskAccess} busy={updating} onStatus={onTaskStatus}/>}
+            {task && <TaskStatusControl record={record} access={taskAccess} busy={updating} onStatus={onTaskStatus}/>}
+            {call&&record.call_outcome&&<span className="cw-muted">{humanize(record.call_outcome)}</span>}
             {deadline&&<span className="cw-event-time cw-deadline" data-deadline={deadline}>{deadline==="unscheduled"?"No due date":`${deadline==="overdue"?"Overdue · ":deadline==="today"?"Today · ":"Due "}${formatDate(record.task_due_date)}`}</span>}
             {!upcoming&&<span className="cw-event-time">{alphabetical ? formatDate(date)||"Date unavailable" : activityTime(date)}</span>}
           </div>
         </div>
         <div className="cw-event-actions">
-          {!call && <button type="button" role="checkbox" className="cw-task-check" aria-checked={done} aria-disabled={!next||updating} aria-busy={updating} aria-label={`Complete task: ${subject || "Untitled task"}`} title={updating ? "Saving status…" : !next ? "Status cannot be changed here" : done ? "Reopen task" : "Mark complete"} onClick={()=>{if(next&&!updating)onTaskToggle(record);}}><span className="cw-task-check-box" aria-hidden="true"><span className="cw-task-spinner"/><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path pathLength="1" d="m5 12 4 4L19 6"/></svg></span></button>}
+          {task && <button type="button" role="checkbox" className="cw-task-check" aria-checked={done} aria-disabled={!next||updating} aria-busy={updating} aria-label={`Complete task: ${subject || "Untitled task"}`} title={updating ? "Saving status…" : !next ? "Status cannot be changed here" : done ? "Reopen task" : "Mark complete"} onClick={()=>{if(next&&!updating)onTaskToggle(record);}}><span className="cw-task-check-box" aria-hidden="true"><span className="cw-task-spinner"/><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path pathLength="1" d="m5 12 4 4L19 6"/></svg></span></button>}
         </div>
       </div>
       <Expandable id={detailsId} open={expanded} className="cw-event-expand">
         {(visited||expanded) && <div className="cw-event-details">
           {description ? <p className="cw-event-notes">{description}</p> : <p className="cw-event-no-notes">No notes recorded.</p>}
           <dl className="cw-event-fields">
-            <EventField label={call?"Recorded by":"Assigned to"}>{record.user?.user_name || "Unknown user"}</EventField>
+            <EventField label={task?"Assigned to":"Recorded by"}>{record.user?.user_name || "Unknown user"}</EventField>
             <EventField label="Created">{formatDate(date) || "Date unavailable"}</EventField>
-            {!call && <>
+            {task && <>
               <EventField label="Priority">{humanize(record.task_priority,"Normal")}</EventField>
               <EventField label="Due date">{formatDate(record.task_due_date) || "Not set"}</EventField>
               <TaskCompletionMeta record={record}/>
             </>}
           </dl>
-          {!call&&canManageTaskDetails(record,taskAccess)&&<div className="cw-form-footer"><button type="button" className="cw-button" disabled={updating} onClick={e=>onTaskEdit(record,e.currentTarget)}>Edit task</button></div>}
+          {task&&canManageTaskDetails(record,taskAccess)&&<div className="cw-form-footer"><button type="button" className="cw-button" disabled={updating} onClick={e=>onTaskEdit(record,e.currentTarget)}>Edit task</button></div>}
         </div>}
       </Expandable>
       {taskError && <p className="cw-field-error" role="alert">{taskError}</p>}
@@ -191,7 +196,7 @@ function WorkspaceSwitch({view,onChange,contentId}) {
 
 function ActivityControls({view,filter,canViewTasks,actions,onAddActivity}) {
   const {sort,setSort,status,setStatus,priority,setPriority,deadline,setDeadline,mine,setMine,searchOpen,setSearchOpen,filterOpen,setFilterOpen,searchId,searchRef,searchButton,closeSearch,resetFilters}=view;
-  const taskFilters=filter!=="call" && canViewTasks;
+  const taskFilters=(filter==="all"||filter==="task") && canViewTasks;
   const count=Number(sort!=="newest")+Number(taskFilters&&status!=="all")+Number(taskFilters&&priority!=="all")+Number(taskFilters&&deadline!=="all")+Number(taskFilters&&mine);
   return <div className="cw-history-controls">
         <button ref={searchButton} type="button" className="cw-icon cw-history-search-button" aria-label="Search activities" aria-expanded={searchOpen} aria-controls={searchId} onClick={()=>{if(searchOpen)closeSearch();else{setSearchOpen(true);setFilterOpen(false);requestAnimationFrame(()=>searchRef.current?.focus());}}}><Search size={18} aria-hidden="true"/></button>
@@ -200,14 +205,14 @@ function ActivityControls({view,filter,canViewTasks,actions,onAddActivity}) {
       </div>;
 }
 
-function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTasks, onRetry, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle, onTaskStatus, onTaskEdit, feedback, lastCreated, view, now, userId }) {
+function Timeline({ calls, tasks, entries, loading, error, filter, setFilter, canViewTasks, onRetry, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle, onTaskStatus, onTaskEdit, feedback, lastCreated, view, now, userId }) {
   const {sort,status,priority,deadline,mine,query,setQuery,searchOpen,searchId,searchRef,closeSearch,expandedKeys,toggle,resetFilters}=view;
-  const taskFilters=filter!=="call" && canViewTasks;
+  const taskFilters=(filter==="all"||filter==="task") && canViewTasks;
   const activeStatus=taskFilters?status:"all", activePriority=taskFilters?priority:"all";
   const activeDeadline=taskFilters?deadline:"all", activeMine=taskFilters&&mine;
   const items = useMemo(
-    () => activityHistory(calls, tasks, filter, { query, status: activeStatus, priority: activePriority, sort, deadline: activeDeadline, mine: activeMine, userId, now }),
-    [calls, tasks, filter, query, activeStatus, activePriority, sort, activeDeadline, activeMine, userId, now]
+    () => activityHistory(calls, tasks, filter, { query, status: activeStatus, priority: activePriority, sort, deadline: activeDeadline, mine: activeMine, userId, now, entries }),
+    [calls, tasks, filter, query, activeStatus, activePriority, sort, activeDeadline, activeMine, userId, now, entries]
   );
   const alphabetical = sort === "az" || sort === "za";
   const {open,past}=useMemo(()=>splitActivity(items,now),[items,now]);
@@ -223,10 +228,10 @@ function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTask
   return <>
     <h2 className="cw-sr">Activity history</h2>
     <Expandable id={searchId} open={searchOpen}><div className="cw-history-search"><Search size={18} aria-hidden="true"/><input ref={searchRef} type="search" aria-label="Search activities and notes" placeholder="Search activities…" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Escape")closeSearch();}}/><button type="button" className="cw-icon" aria-label="Close search" onClick={closeSearch}><X size={18} aria-hidden="true"/></button></div></Expandable>
-    <SlidingTabs className="cw-history-tabs" label="Filter activity" options={[["all","All activity"],["call","Calls"],...(canViewTasks ? [["task","Tasks"]] : [])]} value={filter} onChange={setFilter}/>
+    <SlidingTabs className="cw-history-tabs" label="Filter activity" options={[["all","All activity"],["call","Calls"],...(canViewTasks ? [["task","Tasks"]] : []),["note","Notes"],["email","Emails"],["meeting","Meetings"],["linkedin","LinkedIn"]]} value={filter} onChange={setFilter}/>
     {feedback&&<p className="cw-feedback cw-history-feedback" role="status"><CheckCircle size={16} aria-hidden="true"/>{feedback}{lastCreated&&!items.some(item=>activityKey(item.kind,item.record)===lastCreated)&&" It is hidden by your current view or permissions."}</p>}
     {error && <div className="cw-error cw-history-error" role="alert">{error} <button type="button" className="cw-link" onClick={onRetry}>Retry</button></div>}
-    {loading ? <ContactSkeleton history/> : items.length===0 ? <div className="cw-empty cw-history-empty"><FileText size={32} strokeWidth={1.75} aria-hidden="true"/><h3>{error ? "Activity unavailable" : hasFilters ? "No matching activities" : filter==="all" ? "Activity history appears here" : filter==="call" ? "No calls yet" : "No tasks yet"}</h3><p>{error ? "Retry to load the history." : hasFilters ? "Try changing your filters or search query." : filter==="all" ? "Calls and tasks in chronological order." : "Recorded interactions will appear here."}</p>{!error&&hasFilters&&<button type="button" className="cw-button" onClick={()=>{resetFilters();setQuery("");}}>Clear filters</button>}</div> :
+    {loading ? <ContactSkeleton history/> : items.length===0 ? <div className="cw-empty cw-history-empty"><FileText size={32} strokeWidth={1.75} aria-hidden="true"/><h3>{error ? "Activity unavailable" : hasFilters ? "No matching activities" : filter==="all" ? "Activity history appears here" : filter==="call" ? "No calls yet" : filter==="task" ? "No tasks yet" : "No matching activities"}</h3><p>{error ? "Retry to load the history." : hasFilters ? "Try changing your filters or search query." : filter==="all" ? "Recorded communications and completed work appear here." : "Recorded interactions will appear here."}</p>{!error&&hasFilters&&<button type="button" className="cw-button" onClick={()=>{resetFilters();setQuery("");}}>Clear filters</button>}</div> :
       <div className="cw-timeline">{!alphabetical&&open.length>0&&<section className="cw-timeline-group cw-upcoming"><h3 className="cw-section-heading">Upcoming activities <span className="cw-muted">{open.length} open</span></h3><ol className="cw-timeline-list">{open.map(item=>renderNode(item,true))}</ol></section>}{!alphabetical&&past.length>0&&open.length>0&&<h3 className="cw-section-heading">Past activity</h3>}{groups.map(group=><section className="cw-timeline-group" key={group.key}>
         {group.label&&<h3 className="cw-timeline-date">{group.label}</h3>}
         <ol className="cw-timeline-list">{group.items.map(item=>renderNode(item,false))}</ol>
@@ -250,6 +255,8 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const [contact, setContact] = useState(null), [loading, setLoading] = useState(true), [loadError,setLoadError] = useState("");
   const [taskWrites,setTaskWrites]=useState({}), [taskErrors,setTaskErrors]=useState({});
   const taskLocks=useRef(new Set());
+  const [entries,setEntries]=useState([]);
+  const [entryDrafts,setEntryDrafts]=useState({});
   const [calls,setCalls] = useState([]), [tasks,setTasks] = useState([]), [historyLoading,setHistoryLoading] = useState(true), [historyError,setHistoryError] = useState("");
   const [revision,setRevision] = useState(0), [historyRevision,setHistoryRevision] = useState(0);
   const [searchParams,setSearchParams]=useSearchParams();
@@ -319,14 +326,24 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
       } while (!cancelled && page <= pages);
       if (!cancelled) setTasks(records);
     };
-    Promise.allSettled([fetchCalls(),fetchTasks()]).then(results => {
+    const fetchEntries=async()=>{
+      const records=[];
+      let page=1,pages=1;
+      do {
+        const result=await api.get(`${endpoint}/activities?limit=100&page=${page}`);
+        if(!result.success||!Array.isArray(result.data))throw new Error(errorMessage(result,"Could not load communication history."));
+        records.push(...result.data);pages=result.pagination?.totalPages||1;page++;
+      }while(!cancelled&&page<=pages);
+      if(!cancelled)setEntries(records);
+    };
+    Promise.allSettled([fetchCalls(),fetchTasks(),fetchEntries()]).then(results => {
       if (!cancelled) {
         setHistoryError(results.filter(r => r.status==="rejected").map(r=>r.reason?.message || "Could not load activity.").join(" "));
         setHistoryLoading(false);
       }
     });
     return () => { cancelled = true; };
-  }, [contactId,isOpen,canViewTasks,historyRevision]);
+  }, [contactId,endpoint,isOpen,canViewTasks,historyRevision]);
   useEffect(()=>{if(!newActivity)return;const timer=setTimeout(()=>setNewActivity(null),1250);return ()=>clearTimeout(timer);},[newActivity]);
   function openComposer(next,opener) {
     if (saveLock.current || pending || mode || (next==="call" && !canCall) || (next==="task" && !canTask)) return;
@@ -344,7 +361,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   }
   const closeWorkspace = () => {
     if (pending || deletePending || taskLocks.current.size) return;
-    const dirty = call.subject || call.description || task.subject || task.description || task.date || task.priority !== "NORMAL" || task.time !== "12:00" || email.subject || email.body;
+    const dirty = call.subject || call.description || task.subject || task.description || task.date || task.assignee || task.priority !== "NORMAL" || task.time !== "12:00" || email.subject || email.body || call.followupSubject || Object.values(entryDrafts).some(draft=>draft.subject||draft.description);
     if (dirty && !window.confirm("Discard unsaved activity drafts?")) return;
     onClose();
   };
@@ -387,23 +404,39 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
       if (!href) { setSaveError("This contact does not have a usable email address."); return; }
       window.location.href = href; setFeedback("Email draft requested in your mail client. No email has been sent by CRM."); return;
     }
+    if (entryModes[mode]) {
+      if(!canCall)return;
+      const draft=entryDrafts[mode]||blankEntry;
+      if(!draft.subject.trim()||!draft.description.trim()){setSaveError("Enter a subject and notes.");return;}
+      saveLock.current=true;setPending(mode);
+      try {
+        const result=await api.post(`${endpoint}/activities`,{entry_kind:entryModes[mode],entry_subject:draft.subject,entry_description:draft.description,entry_occurred_at:draft.occurred?new Date(draft.occurred).toISOString():undefined});
+        if(!result.success||!result.data?.entry_id)throw new Error(errorMessage(result,"Could not save activity."));
+        setEntries(prev=>[result.data,...prev]);setEntryDrafts(prev=>({...prev,[mode]:blankEntry}));
+        savedActivity.current=activityKey(result.data.entry_kind.toLowerCase(),result.data);setSavedMode(mode);setFeedback("Activity saved.");
+      }catch(error){setSaveError(error.message||"Could not save activity.");}finally{saveLock.current=false;setPending(null);}
+      return;
+    }
     const isCall = mode === "call";
     if (isCall ? !canCall : !canTask) return;
     const errors=requiredActivityFields(mode,isCall?call:task);
     setFieldErrors(errors);
     if(Object.keys(errors).length){composer.current?.querySelector(`[name="${Object.keys(errors)[0]}"]`)?.focus();return;}
+    if (isCall&&call.followup&&canTask&&(!call.followupSubject.trim()||!call.followupDate||!(call.assignee||currentUserId))){setSaveError("Enter a follow-up subject, due date and assignee.");return;}
+    if ((!isCall||call.followup)&&taskAccess.role==="ORG_ADMIN"&&!(isCall?call.assignee:task.assignee)){setSaveError("Choose an assignee.");return;}
     saveLock.current = true; setPending(mode);
     try {
-      const payload = isCall ? {call_user_fk:currentUserId,call_contact_fk:contactId,call_subject:call.subject.trim(),call_description:call.description.trim()} :
-        {task_user_fk:currentUserId,task_contact_fk:contactId,task_subject:task.subject.trim(),task_description:task.description,task_priority:task.priority,task_due_date:taskDueDate(task.date,task.time)};
+      const payload = isCall ? {call_user_fk:currentUserId,call_contact_fk:contactId,call_subject:call.subject.trim(),call_description:call.description.trim(),call_outcome:call.outcome||null,...(call.followup&&canTask?{followup:{subject:call.followupSubject,due:taskDueDate(call.followupDate,call.followupTime),assignee:call.assignee||currentUserId}}:{})} :
+        {task_user_fk:task.assignee||currentUserId,task_contact_fk:contactId,task_subject:task.subject.trim(),task_description:task.description,task_priority:task.priority,task_due_date:taskDueDate(task.date,task.time)};
       const result = await api.post(isCall ? "/api/calls" : "/api/tasks",payload);
       const record = result?.data || result;
       if (!record || result.success === false || result.error || !(isCall ? record.call_id : record.task_id)) throw new Error(errorMessage(result,"Could not save activity."));
-      const saved = {...record,user:record.user || {user_name:currentUserName}};
-      if (isCall) { setCalls(prev=>[saved,...prev.filter(x=>x.call_id!==saved.call_id)]); setCall(blankCall); }
+      const {followup_task:followupTask,...savedRecord}=record;
+      const saved = {...savedRecord,user:record.user || {user_name:currentUserName}};
+      if (isCall) { setCalls(prev=>[saved,...prev.filter(x=>x.call_id!==saved.call_id)]); setCall(blankCall); if(followupTask&&canViewTasks)setTasks(prev=>[followupTask,...prev.filter(x=>x.task_id!==followupTask.task_id)]); }
       else { if (canViewTasks) setTasks(prev=>[saved,...prev.filter(x=>x.task_id!==saved.task_id)]); setTask(blankTask); }
       savedActivity.current=activityKey(isCall ? "call" : "task",saved);
-      setSavedMode(mode);setFeedback(isCall ? "Call saved." : "Task created.");setRevision(v=>v+1);
+      setSavedMode(mode);setFeedback(isCall ? (followupTask?"Call and follow-up saved.":"Call saved.") : "Task created.");setRevision(v=>v+1);
     } catch(error) { setSaveError(error.message || "Could not save activity. Try again."); }
     finally { saveLock.current=false; setPending(null); }
   }
@@ -421,7 +454,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   if (!isOpen) return null;
   const name=contactName(contact), initials=[contact?.contact_firstname,contact?.contact_lastname].filter(Boolean).map(v=>v[0].toUpperCase()).join("") || "C";
   const recipients=[...new Set([contact?.contact_professional_email,contact?.contact_personal_email].filter(usableEmail))];
-  const actions=[...(canCall ? [{id:"call",label:"Log a call"}] : []),...(canTask ? [{id:"task",label:"Create task"}] : []),{id:"email",label:"Compose email"}];
+  const actions=[...(canCall ? [{id:"call",label:"Log a call"}] : []),...(canTask ? [{id:"task",label:"Create task"}] : []),{id:"email",label:"Compose email"},...(canCall?[{id:"note",label:"Add note"},{id:"email-log",label:"Log email"},{id:"meeting",label:"Log meeting"},{id:"linkedin",label:"Log LinkedIn interaction"}]:[])];
   return <div className="cw-workspace">
     <nav className="cw-breadcrumb" aria-label="Breadcrumb"><button type="button" className="cw-back" onClick={closeWorkspace} disabled={!!pending||Object.values(taskWrites).some(Boolean)}><ArrowLeft size={16}/> Contacts</button></nav>
     {loading ? <ContactSkeleton view={tab}/> : !contact ? <div className="cw-panel cw-empty"><h2>Contact unavailable</h2><p role="alert">{loadError || "Contact not found."}</p><button type="button" className="cw-button" onClick={()=>{setLoading(true);setRevision(v=>v+1);}}>Retry</button></div> : <>
@@ -441,23 +474,25 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
             {tab==="activity"&&<ActivityControls view={activityView} filter={filter} canViewTasks={canViewTasks} actions={actions} onAddActivity={openComposer}/>}
           </div>
           <div id={workspaceContentId} className="cw-work-area-content">
-            {tab==="activity" ? <Timeline calls={calls} tasks={tasks} loading={historyLoading} error={historyError} filter={filter} setFilter={value=>{setNewActivity(null);setFilter(value);}} canViewTasks={canViewTasks} onRetry={retryHistory} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={toggleTask} onTaskStatus={changeTaskStatus} onTaskEdit={editTask} feedback={!mode?feedback:""} lastCreated={lastCreated} view={activityView} now={now} userId={currentUserId}/> : <Opportunities opportunities={contact.opportunities || []}/>}
+            {tab==="activity" ? <Timeline calls={calls} tasks={tasks} entries={entries} loading={historyLoading} error={historyError} filter={filter} setFilter={value=>{setNewActivity(null);setFilter(value);}} canViewTasks={canViewTasks} onRetry={retryHistory} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={toggleTask} onTaskStatus={changeTaskStatus} onTaskEdit={editTask} feedback={!mode?feedback:""} lastCreated={lastCreated} view={activityView} now={now} userId={currentUserId}/> : <Opportunities opportunities={contact.opportunities || []}/>}
           </div>
         </section>
         <ContactProperties contact={contact} summary={summary} historyLoading={historyLoading} historyError={historyError} canViewTasks={canViewTasks}/>
       </div>
-      {mode&&<ActivityComposerDialog key={mode} title={actions.find(a=>a.id===mode)?.label} mode={mode} formId={composerId} pending={!!pending} saved={!!savedMode} disabled={(mode!=="email"&&historyLoading)||(mode==="email"&&!recipients.length)} onClose={finishComposer}>
+      {mode&&<ActivityComposerDialog key={mode} title={actions.find(a=>a.id===mode)?.label} mode={mode} formId={composerId} pending={!!pending} saved={!!savedMode} submitLabel={mode==="call"&&call.followup?"Save call and follow-up":entryModes[mode]?"Save activity":undefined} disabled={(mode!=="email"&&historyLoading)||(mode==="email"&&!recipients.length)} onClose={finishComposer}>
         <form ref={composer} id={composerId} onSubmit={submit} noValidate className="cw-form cw-activity-form" aria-busy={!!pending}>
                 <fieldset key={mode} disabled={!!pending||!!savedMode} className="cw-form-fields">
                 {mode==="call" ? <>
                   <label><span className="cw-field-label">Subject / outcome <span className="cw-required" aria-hidden="true">*</span></span><input required name="subject" value={call.subject} aria-invalid={!!fieldErrors.subject} aria-describedby={fieldErrors.subject ? composerId+"-subject-error" : undefined} onChange={e=>{setCall({...call,subject:e.target.value});if(e.target.value.trim())setFieldErrors(prev=>({...prev,subject:undefined}));}} placeholder="Enter an outcome or call subject"/>{fieldErrors.subject && <span className="cw-field-error" id={composerId+"-subject-error"} role="alert">{fieldErrors.subject}</span>}</label>
                   <label><span className="cw-field-label">Call notes <span className="cw-required" aria-hidden="true">*</span></span><textarea required rows={4} name="description" value={call.description} aria-invalid={!!fieldErrors.description} aria-describedby={fieldErrors.description ? composerId+"-description-error" : undefined} onChange={e=>{setCall({...call,description:e.target.value});if(e.target.value.trim())setFieldErrors(prev=>({...prev,description:undefined}));}} placeholder="What was discussed?"/>{fieldErrors.description && <span className="cw-field-error" id={composerId+"-description-error"} role="alert">{fieldErrors.description}</span>}</label>
+                  <CallOutcomeFields draft={call} setDraft={setCall} canTask={canTask} role={taskAccess.role} userId={currentUserId} tenantId={contact.tenant_fk}/>
                 </> : mode==="task" ? <>
                   <label><span className="cw-field-label">Task subject <span className="cw-required" aria-hidden="true">*</span></span><input required name="subject" value={task.subject} aria-invalid={!!fieldErrors.subject} aria-describedby={fieldErrors.subject ? composerId+"-subject-error" : undefined} onChange={e=>{setTask({...task,subject:e.target.value});if(e.target.value.trim())setFieldErrors(prev=>({...prev,subject:undefined}));}} placeholder="Enter a task name"/>{fieldErrors.subject && <span className="cw-field-error" id={composerId+"-subject-error"} role="alert">{fieldErrors.subject}</span>}</label>
+                  <TaskAssigneeField draft={task} setDraft={setTask} role={taskAccess.role} userId={currentUserId} tenantId={contact.tenant_fk}/>
                   <label>Priority<select value={task.priority} onChange={e=>setTask({...task,priority:e.target.value})}><option value="LOW">Low</option><option value="NORMAL">Normal</option><option value="HIGH">High</option></select></label>
                   <div className="cw-date-row"><label>Due date<input type="date" value={task.date} onChange={e=>setTask({...task,date:e.target.value})}/></label><label>Due time<input type="time" value={task.time} onChange={e=>setTask({...task,time:e.target.value})} disabled={!task.date}/></label></div>
                   <label>Description<textarea rows={3} value={task.description} onChange={e=>setTask({...task,description:e.target.value})} placeholder="What needs to be done?"/></label>
-                </> : <>
+                </> : entryModes[mode] ? <EntryFields draft={entryDrafts[mode]||blankEntry} onChange={draft=>setEntryDrafts(prev=>({...prev,[mode]:draft}))} kind={entryModes[mode]}/> : <>
                   <label>Recipient<select value={recipients.includes(email.recipient) ? email.recipient : recipients[0] || ""} onChange={e=>setEmail({...email,recipient:e.target.value})}>{recipients.length ? recipients.map(address=><option key={address}>{address}</option>) : <option value="">No usable email address</option>}</select></label>
                   <label>Subject<input value={email.subject} onChange={e=>setEmail({...email,subject:e.target.value})} placeholder="Email subject"/></label>
                   <label>Message<textarea rows={5} value={email.body} onChange={e=>setEmail({...email,body:e.target.value})} placeholder="Write your email…"/></label>
