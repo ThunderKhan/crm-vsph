@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, Search, LayoutGrid, Loader2, UserRound, Mail } from 'lucide-react';
+import { LogOut, Search, LayoutGrid, Loader2, UserRound } from 'lucide-react';
 import { hasModule, canDoAction, canManageOrganization } from '../../utils/modules';
 import { avatarColorHex, initialsOf, readProfile } from '../../utils/profile';
 import { api } from '../../utils/api';
@@ -8,12 +8,13 @@ import { api } from '../../utils/api';
 const NAV_ITEMS = [
   { name: 'Dashboard', path: '/v2/dashboard' },
   { name: 'Contacts', path: '/v2/contacts', module: 'CONTACTS' },
-  { name: 'Email Templates', path: '/v2/email-templates', module: 'CONTACTS', icon: <Mail size={16} /> },
   { name: 'Accounts', path: '/v2/accounts', module: 'ACCOUNTS' },
   { name: 'Opportunities', path: '/v2/opportunities', module: 'OPPORTUNITIES' },
   { name: 'Projects', path: '/v2/projects', module: 'PROJECTS' },
   { name: 'Campaigns', path: '/v2/campaigns', module: 'CAMPAIGNS' },
   { name: 'Tasks', path: '/v2/tasks', module: 'TASKS' },
+  { name: 'Team', path: '/v2/team' },
+  { name: 'Email Templates', path: '/v2/email-templates', module: 'CONTACTS' },
 ];
 
 const ROUTES = {
