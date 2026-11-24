@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useId, useRef } from 'react';
+import { useLayoutEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 
 const Modal = ({ 

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../utils/api";
-import { TrendingUp, Users, Briefcase, Calendar, Edit2, MoreHorizontal } from "lucide-react";
+import { Users, Briefcase, MoreHorizontal } from "lucide-react";
 import Button from "./ui/Button";
 import AddContactModal from "./modals/AddContactModal";
 import ActivityFeed from "./ActivityFeed";
@@ -16,31 +16,25 @@ const STAGE_COLORS = {
   UNASSIGNED: "bg-slate-300 text-slate-600",
 };
 
-const OppDetailView = ({ isOpen, onClose, opportunityId, onEdit }) => {
+const OpportunityDetail = ({ isOpen, onClose, opportunityId, onEdit }) => {
   const canCreateContact = canDoAction("CONTACTS", "CREATE");
   const canEdit = canDoAction("OPPORTUNITIES", "EDIT");
   const canDelete = canDoAction("OPPORTUNITIES", "DELETE");
   const [oppData, setOppData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(Boolean(opportunityId));
   const [activeTab, setActiveTab] = useState("Details");
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   useEffect(() => {
-    if (isOpen && opportunityId) {
-      setLoading(true);
-      api
-        .get(`/api/opportunities/${opportunityId}`)
-        .then((res) => {
-          if (res.success) setOppData(res.data);
-        })
-        .catch((error) => console.error("Error fetching opportunity details:", error))
-        .finally(() => setLoading(false));
-    } else {
-      setOppData(null);
-      setActiveTab("Details");
-    }
-  }, [isOpen, opportunityId]);
+    if (!opportunityId) return;
+    let active=true;
+    api.get(`/api/opportunities/${opportunityId}`)
+      .then(res=>{if(active&&res.success)setOppData(res.data);})
+      .catch(error=>console.error("Error fetching opportunity details:",error))
+      .finally(()=>{if(active)setLoading(false);});
+    return ()=>{active=false;};
+  },[opportunityId]);
 
   if (!isOpen) return null;
 
@@ -272,4 +266,7 @@ const OppDetailView = ({ isOpen, onClose, opportunityId, onEdit }) => {
   );
 };
 
-export default OppDetailView;
+export default function OppDetailView(props){
+  if(!props.isOpen)return null;
+  return <OpportunityDetail key={props.opportunityId||"none"} {...props}/>;
+}

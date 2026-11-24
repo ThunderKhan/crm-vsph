@@ -57,7 +57,7 @@ export function OpportunityEditor({record,endpoint,onClose,onSaved}) {
     <form id={formId} onSubmit={submit} className="cw-form cw-activity-form">
       <fieldset disabled={pending||saved} className="cw-form-fields">
         <label>Opportunity name *<input autoFocus required maxLength={191} value={draft.opportunity_name} onChange={e=>set("opportunity_name",e.target.value)}/></label>
-        <label>Stage<select value={draft.opportunity_stage} onChange={e=>set("opportunity_stage",e.target.value)}><option value="">Not set</option>{stages.map(stage=><option key={stage} value={stage}>{humanize(stage)}</option>)}</select></label>
+        <label>Stage<select aria-label="Stage" value={draft.opportunity_stage} onChange={e=>set("opportunity_stage",e.target.value)}><option value="">Not set</option>{stages.map(stage=><option key={stage} value={stage}>{humanize(stage)}</option>)}</select></label>
         <label>Expected close date *<input type="date" required value={draft.opportunity_close_date} onChange={e=>set("opportunity_close_date",e.target.value)}/></label>
         <div className="cw-date-row"><label>Deal value<input inputMode="decimal" value={draft.opportunity_value} onChange={e=>set("opportunity_value",e.target.value)}/></label><label>Currency code<input placeholder="INR, USD…" maxLength={3} value={draft.opportunity_currency} onChange={e=>set("opportunity_currency",e.target.value.toUpperCase())}/></label></div>
         <label>Next step<input maxLength={191} value={draft.opportunity_next_step} onChange={e=>set("opportunity_next_step",e.target.value)}/></label>
@@ -84,7 +84,7 @@ export function RelationshipEditor({value,endpoint,onSaved,onClose}) {
   return <ActivityComposerDialog title="Edit relationship" mode="relationship" formId={formId} pending={pending} saved={saved} onClose={onClose} submitLabel="Save relationship">
     <form id={formId} onSubmit={submit} className="cw-form cw-activity-form">
       <fieldset className="cw-form-fields" disabled={pending||saved}>
-        <label>Relationship stage<select autoFocus value={stage} onChange={e=>setStage(e.target.value)}><option value="">Not set</option>{relationshipStages.map(stage=><option key={stage} value={stage}>{humanize(stage)}</option>)}</select></label>
+        <label>Relationship stage<select aria-label="Relationship stage" autoFocus value={stage} onChange={e=>setStage(e.target.value)}><option value="">Not set</option>{relationshipStages.map(stage=><option key={stage} value={stage}>{humanize(stage)}</option>)}</select></label>
         <p className="cw-muted">This describes the sales relationship, not whether the contact record is active.</p>
         {error&&<p className="cw-error" role="alert">{error}</p>}
       </fieldset>

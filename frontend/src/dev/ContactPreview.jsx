@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { createMemoryRouter, RouterProvider, Link, useNavigate, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import DashboardV2Layout from "../components/v2/dashboardLayout";
@@ -43,7 +43,7 @@ function OutsideScope() {
 // Keep the isolated preview deep-linkable without replacing its MemoryRouter.
 function PreviewViewUrl() {
   const location=useLocation();
-  useEffect(()=>{
+  useLayoutEffect(()=>{
     const current=new URL(window.location.href);
     const params=new URLSearchParams(location.search);
     const view=params.get("contact_view");
@@ -58,9 +58,11 @@ function PreviewViewUrl() {
   return null;
 }
 
-export default function ContactPreview() {
-  const [version,setVersion] = useState(0);
-  const reset = () => { store.reset(); setVersion(v=>v+1); };
-  const router=useMemo(()=>createMemoryRouter([{element:<><PreviewViewUrl/><DashboardV2Layout previewBanner={clean?null:<PreviewControls reset={reset}/>} onPreviewExit={()=>window.location.assign("/")}/><Toaster position="top-right"/></>,children:[{path:"/v2/contacts",element:<Contacts/>},{path:"*",element:<OutsideScope/>}]}],{initialEntries:[initial]}),[version]);
+function PreviewRouter() {
+  const [router]=useState(()=>createMemoryRouter([{element:<><PreviewViewUrl/><DashboardV2Layout previewBanner={clean?null:<PreviewControls reset={()=>{store.reset();window.location.assign("/dev/contact-preview"+(options.toString()?"?"+options.toString():""));}}/>} onPreviewExit={()=>window.location.assign("/")}/><Toaster position="top-right"/></>,children:[{path:"/v2/contacts",element:<Contacts/>},{path:"*",element:<OutsideScope/>}]}],{initialEntries:[initial]}));
   return <RouterProvider router={router}/>;
+}
+
+export default function ContactPreview() {
+  return <PreviewRouter/>;
 }

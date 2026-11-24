@@ -42,39 +42,20 @@ export function SaveGlyph({ state }) {
   </span>;
 }
 
-// A timer is restarted on each successful copy, not on each render.
-export function useCopyFeedback(value) {
-  const [result,setResult] = useState(null);
-  const timer=useRef(null), alive=useRef(true), attempt=useRef(0);
-  useEffect(()=>{alive.current=true;return ()=>{alive.current=false;attempt.current++;clearTimeout(timer.current);};},[]);
-  useEffect(()=>{attempt.current++;clearTimeout(timer.current);},[value]);
-  async function copy() {
-    const ticket=++attempt.current;
-    try {
-      await navigator.clipboard.writeText(String(value));
-      if (!alive.current || ticket!==attempt.current) return false;
-      clearTimeout(timer.current);setResult({value,status:"copied"});
-      timer.current=setTimeout(()=>{if(alive.current)setResult(null);},1500);
-      return true;
-    } catch {
-      if (alive.current && ticket===attempt.current) {clearTimeout(timer.current);setResult({value,status:"error"});}
-      return false;
-    }
-  }
-  return {copied:result?.value===value && result?.status==="copied",error:result?.value===value && result?.status==="error",copy};
-}
-
 // Shared hover delay; focus is immediate and the tooltip is hoverable/dismissible.
 let lastTooltipClose = -Infinity;
+function recordTooltipClose(){lastTooltipClose=Date.now();}
+function withinTooltipGrace(){return Date.now()-lastTooltipClose<300;}
+function TooltipAnchor({children,...handlers}){return cloneElement(children,handlers);}
 export function Tooltip({ text, children }) {
   const id=useId(), anchor=useRef(null), bubble=useRef(null), timer=useRef(null);
   const [open,setOpen]=useState(false), [position,setPosition]=useState(null);
   const focused=useRef(false), hovered=useRef(false), bubbleHovered=useRef(false);
-  function close() {clearTimeout(timer.current);setOpen(false);lastTooltipClose=Date.now();}
+  function close() {clearTimeout(timer.current);setOpen(false);recordTooltipClose();}
   function show(event, immediate=false) {
     anchor.current=event.currentTarget;
     clearTimeout(timer.current);
-    if (immediate || Date.now()-lastTooltipClose<300) setOpen(true);
+    if (immediate || withinTooltipGrace()) setOpen(true);
     else timer.current=setTimeout(()=>setOpen(true),350);
   }
   function scheduleClose() {
@@ -96,18 +77,17 @@ export function Tooltip({ text, children }) {
   },[open,text]);
   useEffect(()=>{
     if(!open)return;
-    const dismiss=e=>{if(e.key==="Escape"){clearTimeout(timer.current);setOpen(false);lastTooltipClose=Date.now();}};
+    const dismiss=e=>{if(e.key==="Escape"){clearTimeout(timer.current);setOpen(false);recordTooltipClose();}};
     document.addEventListener("keydown",dismiss);
     return ()=>document.removeEventListener("keydown",dismiss);
   },[open]);
-  return <>{cloneElement(children,{
-    "aria-describedby":[children.props["aria-describedby"],open?id:null].filter(Boolean).join(" ")||undefined,
-    onPointerEnter:e=>{children.props.onPointerEnter?.(e);if(e.pointerType==="touch")return;hovered.current=true;show(e);},
-    onPointerLeave:e=>{children.props.onPointerLeave?.(e);hovered.current=false;scheduleClose();},
-    onFocus:e=>{children.props.onFocus?.(e);focused.current=true;show(e,true);},
-    onBlur:e=>{children.props.onBlur?.(e);focused.current=false;scheduleClose();},
-    onClick:e=>{children.props.onClick?.(e);if(e.pointerType==="touch")close();},
-  })}{open&&createPortal(<span id={id} role="tooltip" ref={bubble} className="cw-tooltip" style={{left:position?.left??8,top:position?.top??8,visibility:position?"visible":"hidden"}} onPointerEnter={()=>{bubbleHovered.current=true;clearTimeout(timer.current);}} onPointerLeave={()=>{bubbleHovered.current=false;scheduleClose();}}>{text}</span>,document.body)}</>;
+  return <><TooltipAnchor aria-describedby={[children.props["aria-describedby"],open?id:null].filter(Boolean).join(" ")||undefined}
+    onPointerEnter={e=>{children.props.onPointerEnter?.(e);if(e.pointerType==="touch")return;hovered.current=true;show(e);}}
+    onPointerLeave={e=>{children.props.onPointerLeave?.(e);hovered.current=false;scheduleClose();}}
+    onFocus={e=>{children.props.onFocus?.(e);focused.current=true;show(e,true);}}
+    onBlur={e=>{children.props.onBlur?.(e);focused.current=false;scheduleClose();}}
+    onClick={e=>{children.props.onClick?.(e);if(e.pointerType==="touch")close();}}
+  >{children}</TooltipAnchor>{open&&createPortal(<span id={id} role="tooltip" ref={bubble} className="cw-tooltip" style={{left:position?.left??8,top:position?.top??8,visibility:position?"visible":"hidden"}} onPointerEnter={()=>{bubbleHovered.current=true;clearTimeout(timer.current);}} onPointerLeave={()=>{bubbleHovered.current=false;scheduleClose();}}>{text}</span>,document.body)}</>;
 }
 
 export function ContactSkeleton({ history=false, view="activity" }) {

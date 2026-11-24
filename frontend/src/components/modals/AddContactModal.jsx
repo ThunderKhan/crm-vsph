@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Loader2, User } from "lucide-react";
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
@@ -9,7 +9,7 @@ import { readSessionValue } from "../../utils/session.js";
 import { INDUSTRIES } from "../../data/industries";
 import toast from "react-hot-toast";
 
-const AddContactModal = ({
+const ContactForm = ({
   isOpen,
   onClose,
   onSuccess,
@@ -23,11 +23,11 @@ const AddContactModal = ({
   const {closing,close}=useDialogExit(onClose,workspaceMotion);
   const submitLock=useRef(false);
   const [error, setError] = useState("");
-  const [ownerName, setOwnerName] = useState("");
-  const [ownerId, setOwnerId] = useState("");
+  const ownerId=contactToEdit?contactToEdit.contact_owner_fk:readSessionValue("vsph_user_id");
+  const ownerName=contactToEdit?contactToEdit.contact_owner?.user_name||"Unknown User":readSessionValue("vsph_user_name")||"Unknown User";
   const [accounts, setAccounts] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [campaigns, setCampaigns] = useState([]);
+  const [projects] = useState([]);
+  const [campaigns] = useState([]);
   const [workspaceCampaigns,setWorkspaceCampaigns] = useState([]);
   const [campaignError,setCampaignError] = useState("");
   const [campaignLoading,setCampaignLoading] = useState(false);
@@ -101,9 +101,7 @@ const AddContactModal = ({
     shipping_country: "",
   };
 
-  const [formData, setFormData] = useState(defaultFormData);
-
-  useEffect(() => {
+  const [formData, setFormData] = useState(() => {
     if (contactToEdit) {
       const billing = contactToEdit.contact_account_billing_address?.[0] || {};
       const shipping =
@@ -112,7 +110,7 @@ const AddContactModal = ({
       const formattedDate = (isoString) =>
         isoString ? new Date(isoString).toISOString().split("T")[0] : "";
 
-      setFormData({
+      return {
         ...defaultFormData,
         ...contactToEdit,
         contact_pickup_date: formattedDate(contactToEdit.contact_pickup_date),
@@ -127,14 +125,14 @@ const AddContactModal = ({
         shipping_state: shipping.shipping_state || "",
         shipping_zip: shipping.shipping_zip || "",
         shipping_country: shipping.shipping_country || "",
-      });
+      };
     } else {
-      setFormData({
+      return {
         ...defaultFormData,
         contact_account_fk: defaultAccountId || "",
-      });
+      };
     }
-  }, [contactToEdit, defaultAccountId]);
+  });
 
   useEffect(() => {
     const fetchAccounts = async () => {
@@ -153,21 +151,8 @@ const AddContactModal = ({
       }
     };
 
-    if (isOpen) {
-      if (!contactToEdit) {
-        const userId = readSessionValue("vsph_user_id");
-        const userName = readSessionValue("vsph_user_name");
-        if (userId) {
-          setOwnerName(userName || "Unknown User");
-          setOwnerId(userId);
-        }
-      } else if (contactToEdit.contact_owner) {
-        setOwnerName(contactToEdit.contact_owner.user_name);
-        setOwnerId(contactToEdit.contact_owner_fk);
-      }
-      fetchAccounts();
-    }
-  }, [isOpen, contactToEdit]);
+    if (isOpen) fetchAccounts();
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen || !workspaceMotion || !canAssignCampaign) return;
@@ -175,7 +160,7 @@ const AddContactModal = ({
     const load = async () => {
       setCampaignLoading(true);
       try {
-        const records = []; let page = 1, pages = 1;
+        const records = []; let page = 1, pages;
         do {
           const response = await api.get(`/api/campaigns?limit=100&page=${page}`);
           if (!response.success || !Array.isArray(response.data)) throw new Error(response.message || "Could not load campaigns.");
@@ -1155,4 +1140,7 @@ const AddContactModal = ({
   );
 };
 
-export default AddContactModal;
+export default function AddContactModal(props){
+  if(!props.isOpen)return null;
+  return <ContactForm key={props.contactToEdit?.contact_id||props.defaultAccountId||"new"} {...props}/>;
+}

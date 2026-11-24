@@ -1,6 +1,7 @@
 import { memo, useId, useLayoutEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
-import { CopyGlyph, useCopyFeedback, Tooltip } from "./ContactMotion";
+import { CopyGlyph, Tooltip } from "./ContactMotion";
+import { useCopyFeedback } from "./useCopyFeedback.js";
 import { Link } from "react-router-dom";
 import { emailLink, phoneLink, safeWebLink, humanize, present, formatDate } from "./contactWorkspaceUtils.js";
 

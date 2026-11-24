@@ -1,6 +1,9 @@
 import { test, expect } from "@playwright/test";
 
 const url = "/dev/contact-preview";
+const pageErrors=new WeakMap();
+test.beforeEach(({page})=>{const errors=[];pageErrors.set(page,errors);page.on("pageerror",error=>errors.push(error.message));});
+test.afterEach(({page})=>{expect(pageErrors.get(page)||[],"Uncaught application errors").toEqual([]);});
 async function openActivity(page,label){
   await page.getByRole("button",{name:"Add activity",exact:true}).click();
   await page.getByRole("menuitem",{name:label,exact:true}).click();
@@ -367,6 +370,7 @@ test("workspace views keep contact context, activity state and deep links",async
   await expect(history.getByRole("radio",{name:"Oldest first"})).toBeChecked();
   await page.keyboard.press("Escape");
   await opportunities.click();
+  await expect(page).toHaveURL(/contact_view=opportunities/);
   await page.reload();
   await expect(page.getByRole("heading",{name:"Linked opportunities"})).toBeVisible();
   await expect(details).toBeVisible();
@@ -400,12 +404,13 @@ test("final craft pass preserves keyboard views, address rows and narrow toolbar
   await page.keyboard.press("Escape");
   await details.getByRole("button",{name:"View all contact details"}).click();
   await details.getByRole("button",{name:"Billing address",exact:true}).click();
-  const billing=details.locator(".cw-property-group").filter({has:details.getByRole("button",{name:"Billing address",exact:true})});
+  const billing=details.locator(".cw-property-group").filter({has:page.getByRole("button",{name:"Billing address",exact:true})});
   await expect(billing.locator("dt")).toHaveText(["Street","City","State / province","Postal code","Country","Phone"]);
   await page.getByRole("button",{name:"Minimal contact",exact:true}).click();
   await expect(page.getByRole("heading",{name:/Neel Shah/})).toBeVisible();
   await switcher.getByRole("button",{name:"Opportunities"}).click();
   await expect(page).toHaveURL(/scenario=preview-contact-sparse/);
+  await expect(page).toHaveURL(/contact_view=opportunities/);
   await page.reload();
   await expect(page.getByRole("heading",{name:/Neel Shah/})).toBeVisible();
   await expect(page.getByRole("heading",{name:"No linked opportunities"})).toBeVisible();
@@ -510,9 +515,11 @@ test("DNC opt-in and audited manual activity corrections preserve workspace beha
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await history.getByRole("button",{name:"Expand details: Correction example"}).click();
   await history.getByRole("button",{name:"Edit activity",exact:true}).click();
-  await page.getByRole("dialog").getByLabel("Note",{exact:true}).fill("Corrected note");
-  await page.getByRole("dialog").getByRole("button",{name:"Save changes"}).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const correction=page.getByRole("dialog",{name:"Edit activity",exact:true});
+  await expect(correction).toBeVisible();
+  await correction.getByRole("textbox",{name:"Note",exact:true}).fill("Corrected note");
+  await correction.getByRole("button",{name:"Save changes"}).click();
+  await expect(correction).toHaveCount(0);
   await expect(history.getByText("Corrected note",{exact:true})).toBeVisible();
   await history.getByRole("button",{name:"Delete activity",exact:true}).click();
   await page.getByRole("dialog").getByRole("button",{name:"Delete activity",exact:true}).click();

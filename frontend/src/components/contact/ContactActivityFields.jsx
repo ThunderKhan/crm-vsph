@@ -7,6 +7,7 @@ import { humanize } from "./contactWorkspaceUtils.js";
 const outcomes=["CONNECTED","NOT_CONNECTED","RINGING","NOT_AVAILABLE","PITCH_DONE","NOT_INTERESTED","NOT_RELEVANT","LEFT_ORGANIZATION","WRONG_NUMBER","DNC"];
 
 export function TaskAssigneeField({draft,setDraft,role,tenantId}) {
+  const assigneeId=useId();
   const [users,setUsers]=useState([]);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(true);
@@ -21,7 +22,7 @@ export function TaskAssigneeField({draft,setDraft,role,tenantId}) {
     return()=>{active=false;};
   },[employee,role,tenantId]);
   if(employee)return <p className="cw-muted">Assigned to you</p>;
-  return <label>Assignee<select value={draft.assignee||""} onChange={event=>setDraft(prev=>({...prev,assignee:event.target.value}))} disabled={loading}>
+  return <label htmlFor={assigneeId}><span id={assigneeId+"-label"}>Assignee</span><select id={assigneeId} aria-labelledby={assigneeId+"-label"} value={draft.assignee||""} onChange={event=>setDraft(prev=>({...prev,assignee:event.target.value}))} disabled={loading}>
     <option value="">{["ORG_ADMIN","PLATFORM_SUPERADMIN"].includes(role)?"Choose an assignee":"Assign to me"}</option>
     {users.map(user=><option key={user.user_id} value={user.user_id}>{user.user_name}</option>)}
   </select>{error&&<span className="cw-field-error" role="alert">{error}</span>}</label>;
@@ -30,7 +31,7 @@ export function TaskAssigneeField({draft,setDraft,role,tenantId}) {
 export function CallOutcomeFields({draft,setDraft,canTask,canEdit,role,tenantId}) {
   const set=(key,value)=>setDraft(prev=>({...prev,[key]:value}));
   return <>
-    <label>Call outcome<select value={draft.outcome} onChange={e=>setDraft(prev=>({...prev,outcome:e.target.value,markDnc:false}))}><option value="">Not recorded</option>{outcomes.map(outcome=><option key={outcome} value={outcome}>{humanize(outcome)}</option>)}</select></label>
+    <label>Call outcome<select aria-label="Call outcome" value={draft.outcome} onChange={e=>setDraft(prev=>({...prev,outcome:e.target.value,markDnc:false}))}><option value="">Not recorded</option>{outcomes.map(outcome=><option key={outcome} value={outcome}>{humanize(outcome)}</option>)}</select></label>
     {draft.outcome==="DNC"&&canEdit&&<label className="cw-filter-mine"><input type="checkbox" checked={draft.markDnc} onChange={e=>set("markDnc",e.target.checked)}/> Mark contact as do not call</label>}
     {canTask&&<><label className="cw-filter-mine"><input type="checkbox" checked={draft.followup} onChange={e=>set("followup",e.target.checked)}/> Schedule a follow-up</label>
       {draft.followup&&<div className="cw-form-fields">
@@ -46,7 +47,7 @@ export function EntryFields({draft,onChange,kind}) {
   const set=(key,value)=>onChange({...draft,[key]:value});
   return <>
     <label>Subject<input required maxLength={191} value={draft.subject} onChange={e=>set("subject",e.target.value)}/></label>
-    <label>{kind==="NOTE"?"Note":"Interaction notes"}<textarea required maxLength={10000} rows={5} value={draft.description} onChange={e=>set("description",e.target.value)}/></label>
+    <label>{kind==="NOTE"?"Note":"Interaction notes"}<textarea aria-label={kind==="NOTE"?"Note":"Interaction notes"} required maxLength={10000} rows={5} value={draft.description} onChange={e=>set("description",e.target.value)}/></label>
     <label>Occurred at<input type="datetime-local" value={draft.occurred} onChange={e=>set("occurred",e.target.value)}/></label>
     <p className="cw-muted">{kind==="NOTE"?"Internal note; leave time empty to record now.":"Manual record only. CRM does not send messages or schedule meetings."}</p>
   </>;

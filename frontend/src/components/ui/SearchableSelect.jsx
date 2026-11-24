@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Search } from "lucide-react";
 
 const SearchableSelect = ({ options, value, onChange, placeholder = "Select...", hasError, workspaceMotion=false, controlId, label }) => {
