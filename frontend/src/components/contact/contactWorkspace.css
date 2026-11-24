@@ -7,16 +7,13 @@
 .cw-panel { background:#fff; border:1px solid #d9e0e7; border-radius:8px; min-width:0; }
 .cw-muted { color:#52647a; font-size:14px; line-height:20px; overflow-wrap:anywhere; }
 .cw-back,.cw-link { display:inline-flex; align-items:center; gap:8px; color:#0069c8; font-size:14px; font-weight:500; min-height:44px; width:max-content; cursor:pointer; }
-.cw-identity { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:24px; padding:24px; min-height:156px; }
+.cw-identity { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:24px; padding:24px; min-height:0; }
 .cw-identity-main,.cw-identity-meta,.cw-actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-.cw-identity-main { flex:1 1 320px; min-width:0; flex-wrap:nowrap; align-items:flex-start; gap:20px; }
+.cw-identity-main { flex:1 1 320px; min-width:0; flex-wrap:nowrap; align-items:center; gap:20px; }
 .cw-identity-text { min-width:0; }
 .cw-avatar { display:grid; place-items:center; width:68px; height:68px; border-radius:10px; flex:none; background:#e4eef5; font-size:24px; font-weight:600; }
-.cw-identity-meta { color:#52647a; font-size:14px; margin-top:2px; flex-direction:column; align-items:flex-start; gap:16px; }
-.cw-status { display:inline-flex; gap:8px; align-items:center; color:#52647a; font-weight:400; }
-.cw-status-dot { width:10px; height:10px; border-radius:50%; background:currentColor; flex:none; }
-.cw-status[data-connected="true"] { color:#237b60; }
-.cw-identity-side { display:flex; flex-direction:column; gap:20px; align-items:flex-end; }
+.cw-identity-meta { color:#52647a; font-size:14px; margin-top:2px; }
+.cw-identity-side { display:flex; align-items:center; }
 .cw-button,.cw-icon { display:inline-flex; justify-content:center; align-items:center; gap:8px; min-height:44px; padding:8px 16px; border:1px solid #00255a; border-radius:6px; background:white; color:#00255a; font-size:14px; font-weight:500; cursor:pointer; }
 .cw-icon { min-width:44px; width:44px; padding:0; border-color:#d9e0e7; flex:none; }
 .cw-primary { background:#0069c8; color:#fff; border-color:#0069c8; }

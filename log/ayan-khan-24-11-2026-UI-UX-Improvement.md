@@ -191,3 +191,7 @@ Local visual feedback: required asterisks appeared on their own grid row. Wrap e
 ## 11. Contact summary alignment — 24 November 2026
 
 Local feedback identified ragged right-aligned values and awkward mid-address line breaks. Use one fixed/proportional label track and one flexible left-aligned value track across every summary row. Email and phone use single-line ellipsis only when needed, with their full underlying link and copy value intact, a native title on the text, and fully readable professional email/mobile in expanded details. Non-identifier text such as account, designation and campaign wraps normally when needed; copy controls retain 44px targets. Do not alter the shared design standard or backend.
+
+## 12. Contact identity simplification — 24 November 2026
+
+User approved removing the Connected/call-status indicator and duplicated owner text from the identity header. This supersedes the earlier header specification for those two fields. Retain contact owner in the summary and call status in expanded Additional information. Reduce the header height to fit the name, avatar, record code and existing permitted actions; vertically center the identity and actions. No data or workflow removed.

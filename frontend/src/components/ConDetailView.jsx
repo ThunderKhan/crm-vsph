@@ -230,12 +230,12 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
     {loading ? <div className="cw-panel cw-empty" role="status">Loading contact…</div> : !contact ? <div className="cw-panel cw-empty"><h2>Contact unavailable</h2><p role="alert">{loadError || "Contact not found."}</p><button type="button" className="cw-button" onClick={()=>{setLoading(true);setRevision(v=>v+1);}}>Retry</button></div> : <>
       {loadError && <p className="cw-error" role="alert">{loadError}</p>}
       <section className="cw-panel cw-identity">
-        <div className="cw-identity-main"><div className="cw-avatar" aria-hidden="true">{initials}</div><div className="cw-identity-text"><h1>{name}</h1><div className="cw-identity-meta"><span>{contact.contact_code || "No record code"}</span><span className="cw-status" data-connected={contact.contact_call_status==="CONNECTED"}><span className="cw-status-dot" aria-hidden="true"/>{humanize(contact.contact_call_status,"No call status")}</span></div></div></div>
+        <div className="cw-identity-main"><div className="cw-avatar" aria-hidden="true">{initials}</div><div className="cw-identity-text"><h1>{name}</h1><div className="cw-identity-meta"><span>{contact.contact_code || "No record code"}</span></div></div></div>
         <div className="cw-identity-side"><div className="cw-actions">
           {canEdit && <button type="button" className="cw-button" onClick={()=>{setFocusCampaign(false);setEdit(true);}}>Edit contact</button>}
           {canCall && (!mode || tab !== "overview") && <button type="button" className={`cw-button ${tab !== "overview" ? "cw-primary" : ""}`} onClick={()=>openComposer("call")} disabled={!!pending}><Plus size={16}/> Log call</button>}
           {(canAssignCampaign || canDelete || contact.contact_code) && <MoreActions canEdit={canAssignCampaign} canDelete={canDelete} code={contact.contact_code} onCampaign={()=>{setFocusCampaign(true);setEdit(true);}} onDelete={()=>{setDeleteError("");setDeleting(true);}}/>}
-        </div><p className="cw-muted">Owner: {contact.contact_owner?.user_name || "Not assigned"}</p></div>
+        </div></div>
       </section>
       <div className="cw-tabs cw-main-tabs" role="group" aria-label="Contact workspace views">
         {[["overview","Overview"],["opportunities","Opportunities"]].map(([value,label])=><button type="button" key={value} aria-pressed={tab===value} onClick={()=>setTab(value)}>{label}</button>)}
