@@ -24,6 +24,9 @@ export function canManageTaskDetails(task,{canEdit,role}) {
   if(!canEdit||!task?.task_id||!["ORG_ADMIN","ORG_SUPER_ADMIN","PLATFORM_SUPERADMIN"].includes(role))return false;
   return !(role==="ORG_ADMIN"&&(task.user?.user_role==="ADMIN"||task.user?.user_role==="SUPER_ADMIN"||task.user?.user_is_tenant_owner));
 }
+export function canRescheduleTask(task,access){
+  return Boolean(access.canEdit&&access.role==="EMPLOYEE"&&access.userId&&task?.task_user_fk===access.userId&&task.task_assigned_by_fk===access.userId&&task.task_status!=="COMPLETED");
+}
 export function allowedTaskStatuses(task,access) {
   if(!access.canEdit||!task?.task_id||!TASK_STATES.includes(task.task_status))return [];
   if(access.role==="EMPLOYEE")return access.userId&&task.task_user_fk===access.userId ? [task.task_status,...EMPLOYEE_MOVES[task.task_status]] : [];

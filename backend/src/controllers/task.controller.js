@@ -3,6 +3,7 @@ import { getTenantFilter } from "../middleware/auth.middleware.js";
 import { isEmployee } from "../lib/roles.js";
 import {
   assertEmployeeTaskPatch,
+  canRescheduleOwnTask,
   canAssignTaskTo,
   canTransition,
   canUpdateTaskProgress,
@@ -227,7 +228,7 @@ export const updateTask = async (req, res) => {
       if (!canUpdateTaskProgress(req.user, existing)) {
         return res.status(403).json({ success: false, message: "You can only update tasks assigned to you." });
       }
-      const guard = assertEmployeeTaskPatch(req.body);
+      const guard = assertEmployeeTaskPatch(req.body,canRescheduleOwnTask(req.user,existing));
       if (!guard.ok) return res.status(403).json({ success: false, message: guard.message });
       note = req.body.note !== undefined ? String(req.body.note || "").trim() || null : null;
     } else {
@@ -276,6 +277,13 @@ export const updateTask = async (req, res) => {
       note = req.body.note !== undefined ? String(req.body.note || "").trim() || null : null;
     }
 
+    if (employee&&req.body.task_due_date!==undefined){
+      const due=req.body.task_due_date===null?null:new Date(req.body.task_due_date);
+      if(due&&!Number.isFinite(due.getTime()))return res.status(400).json({success:false,message:"Invalid due date."});
+      data.task_due_date=due;
+      const previous=existing.task_due_date?.toISOString()||"Not set";
+      note=[note,"Due date changed from "+previous+" to "+(due?.toISOString()||"Not set")].filter(Boolean).join("\n");
+    }
     if (req.body.task_progress !== undefined) {
       const progressCheck = validateProgress(req.body.task_progress);
       if (!progressCheck.ok) {

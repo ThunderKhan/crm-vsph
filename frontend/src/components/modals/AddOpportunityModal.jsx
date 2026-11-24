@@ -27,6 +27,7 @@ const AddOpportunityModal = ({
 
   const [formData, setFormData] = useState({
     opportunity_name: "",
+    opportunity_value:"",opportunity_currency:"",opportunity_next_step:"",
     opportunity_close_date: "",
     opportunity_stage: "PITCH_DONE",
     opportunity_type: "INBOUND",
@@ -103,6 +104,7 @@ const AddOpportunityModal = ({
     if (opportunityToEdit) {
       setFormData({
         opportunity_name: opportunityToEdit.opportunity_name || "",
+        opportunity_value:opportunityToEdit.opportunity_value??"",opportunity_currency:opportunityToEdit.opportunity_currency||"",opportunity_next_step:opportunityToEdit.opportunity_next_step||"",
         opportunity_close_date: opportunityToEdit.opportunity_close_date
           ? new Date(opportunityToEdit.opportunity_close_date)
               .toISOString()
@@ -151,6 +153,7 @@ const AddOpportunityModal = ({
     } else {
       setFormData({
         opportunity_name: "",
+    opportunity_value:"",opportunity_currency:"",opportunity_next_step:"",
         opportunity_close_date: "",
         opportunity_stage: "",
         opportunity_type: "",
@@ -335,6 +338,11 @@ const AddOpportunityModal = ({
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <label className="text-sm text-slate-700">Deal value<input name="opportunity_value" inputMode="decimal" value={formData.opportunity_value} onChange={handleChange} className="w-full border border-slate-300 rounded-md px-3 py-2"/></label>
+                <label className="text-sm text-slate-700">Currency code<input name="opportunity_currency" maxLength={3} value={formData.opportunity_currency} onChange={handleChange} placeholder="INR" className="w-full border border-slate-300 rounded-md px-3 py-2"/></label>
+              </div>
+              <label className="block text-sm text-slate-700">Next step<input name="opportunity_next_step" maxLength={191} value={formData.opportunity_next_step} onChange={handleChange} className="w-full border border-slate-300 rounded-md px-3 py-2"/></label>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">

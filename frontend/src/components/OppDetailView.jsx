@@ -138,6 +138,7 @@ const OppDetailView = ({ isOpen, onClose, opportunityId, onEdit }) => {
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Account</span>
                   <span className="text-[13px] text-slate-800 font-semibold">{oppData.opportunity_account?.account_name || "—"}</span>
                 </div>
+                <div className="flex flex-col min-w-[120px]"><span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Deal value</span><span className="text-[13px] text-slate-800 font-semibold">{oppData.opportunity_value!=null&&oppData.opportunity_currency?`${oppData.opportunity_currency} ${oppData.opportunity_value}`:"Not set"}</span></div>
                 <div className="flex flex-col min-w-[120px]">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Stage</span>
                   <span className={`text-[13px] font-semibold ${STAGE_COLORS[oppData.opportunity_stage] || "bg-slate-300 text-slate-600"}`}>
@@ -147,6 +148,7 @@ const OppDetailView = ({ isOpen, onClose, opportunityId, onEdit }) => {
               </div>
             </div>
 
+            {oppData.opportunity_next_step&&<div className="bg-white border border-slate-200 rounded-lg p-4"><h2 className="text-sm font-semibold text-slate-800">Next step</h2><p className="text-sm text-slate-700 break-words mt-1">{oppData.opportunity_next_step}</p></div>}
             {/* Main Content Layout */}
             <div className="flex flex-col lg:flex-row gap-6">
               {/* Left Column - Details */}

@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import { isContactPreview } from './utils/session.js'
-import { BrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 
 const root = createRoot(document.getElementById('root'))
@@ -15,8 +15,5 @@ if (import.meta.env.DEV && isContactPreview()) {
     root.render(<p role="alert">Unable to load the local contact preview. Check the development console.</p>)
   })
 } else root.render(
-    <BrowserRouter>
-      <App />
-      <Toaster position="top-right" />
-    </BrowserRouter>
+    <RouterProvider router={createBrowserRouter([{path:"*",element:<><App/><Toaster position="top-right"/></>}])}/>
 )

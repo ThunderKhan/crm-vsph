@@ -46,7 +46,7 @@ export function activityHistory(calls, tasks, filter = "all", options = {}) {
     for (const record of calls) items.push({ kind: "call", record, date: record.call_created_at });
   }
   if (filter === "all" || filter === "task") {
-    for (const record of tasks) items.push({ kind: "task", record, date: record.task_created_at });
+    for (const record of tasks) items.push({ kind: "task", record, date: record.task_status==="COMPLETED"&&present(record.task_completed_at)&&Number.isFinite(new Date(record.task_completed_at).getTime())?record.task_completed_at:record.task_created_at });
   }
   for (const record of options.entries || []) {
     const kind=record.entry_kind.toLowerCase();

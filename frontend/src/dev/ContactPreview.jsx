@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { MemoryRouter, Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { createMemoryRouter, RouterProvider, Link, useNavigate, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import DashboardV2Layout from "../components/v2/dashboardLayout";
 import Contacts from "../pages/Contacts";
@@ -61,14 +61,6 @@ function PreviewViewUrl() {
 export default function ContactPreview() {
   const [version,setVersion] = useState(0);
   const reset = () => { store.reset(); setVersion(v=>v+1); };
-  return <MemoryRouter key={version} initialEntries={[initial]}>
-    <PreviewViewUrl/>
-    <Routes>
-      <Route element={<DashboardV2Layout previewBanner={clean ? null : <PreviewControls reset={reset}/>} onPreviewExit={()=>window.location.assign("/")}/>}>
-        <Route path="/v2/contacts" element={<Contacts/>}/>
-        <Route path="*" element={<OutsideScope/>}/>
-      </Route>
-    </Routes>
-    <Toaster position="top-right"/>
-  </MemoryRouter>;
+  const router=useMemo(()=>createMemoryRouter([{element:<><PreviewViewUrl/><DashboardV2Layout previewBanner={clean?null:<PreviewControls reset={reset}/>} onPreviewExit={()=>window.location.assign("/")}/><Toaster position="top-right"/></>,children:[{path:"/v2/contacts",element:<Contacts/>},{path:"*",element:<OutsideScope/>}]}],{initialEntries:[initial]}),[version]);
+  return <RouterProvider router={router}/>;
 }

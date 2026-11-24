@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { selectionIndicator, activityKey, requiredActivityFields, taskStatusLabel, nextTaskCompletion, completionActor, allowedTaskStatuses, canManageTaskDetails, assignableTaskUser, taskEditPatch, localTaskDue, menuFocusIndex } from "../src/components/contact/contactMotionUtils.js";
+import { selectionIndicator, activityKey, requiredActivityFields, taskStatusLabel, nextTaskCompletion, completionActor, allowedTaskStatuses, canManageTaskDetails, assignableTaskUser, taskEditPatch, localTaskDue, menuFocusIndex, canRescheduleTask } from "../src/components/contact/contactMotionUtils.js";
 
 test("indicator follows actual tab bounds including wrapped rows",()=>{
   assert.deepEqual(selectionIndicator({left:10,top:20},{left:30,bottom:64,width:90}),{x:20,y:41,width:90});
@@ -69,4 +69,14 @@ test("menu navigation wraps, handles an unfocused item and ignores other keys", 
   assert.equal(menuFocusIndex("End",0,3),2);
   assert.equal(menuFocusIndex("Enter",0,3),null);
   assert.equal(menuFocusIndex("ArrowDown",-1,0),null);
+});
+
+test("employees can only reschedule their own self-assigned open tasks",()=>{
+  const access={canEdit:true,role:"EMPLOYEE",userId:"e"};
+  const task={task_id:"t",task_user_fk:"e",task_assigned_by_fk:"e",task_status:"TODO"};
+  assert.equal(canRescheduleTask(task,access),true);
+  assert.equal(canRescheduleTask({...task,task_assigned_by_fk:"manager"},access),false);
+  assert.equal(canRescheduleTask({...task,task_user_fk:"other"},access),false);
+  assert.equal(canRescheduleTask({...task,task_status:"COMPLETED"},access),false);
+  assert.equal(canRescheduleTask(task,{...access,canEdit:false}),false);
 });

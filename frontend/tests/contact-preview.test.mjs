@@ -140,3 +140,22 @@ test("relationship and commercial records update independently and stay contact 
   assert.equal((await s.request("PATCH","/api/contacts/"+full+"/opportunities/"+created.data.opportunity_id,{...payload,opportunity_next_step:"Review quote"})).data.opportunity_next_step,"Review quote");
   assert.equal((await s.request("GET","/api/contacts/"+sparse)).data.opportunities.length,0);
 });
+
+test("correction is revision checked, soft deleted and contact scoped; DNC is explicit",async()=>{
+  const s=make(), url="/api/contacts/"+full+"/activities";
+  const created=await s.request("POST",url,{entry_kind:"NOTE",entry_subject:"Original",entry_description:"Original note"});
+  const id=created.data.entry_id, patch={entry_revision:0,entry_subject:"Corrected",entry_description:"Corrected note",entry_occurred_at:created.data.entry_occurred_at};
+  assert.equal((await s.request("PATCH","/api/contacts/"+sparse+"/activities/"+id,patch)).success,false);
+  const result=await s.request("PATCH",url+"/"+id,patch);
+  assert.equal(result.data.entry_revision,1);
+  assert.equal(result.data.entry_audit[0].previous.subject,"Original");
+  assert.equal((await s.request("PATCH",url+"/"+id,patch)).success,false);
+  assert.equal((await s.request("DELETE",url+"/"+id)).success,true);
+  assert.equal((await s.request("GET",url)).data.length,0);
+  const call={call_contact_fk:full,call_subject:"Preference",call_description:"Do not call",call_outcome:"DNC"};
+  const original=(await s.request("GET","/api/contacts/"+full)).data.contact_call_status;
+  await s.request("POST","/api/calls",call);
+  assert.equal((await s.request("GET","/api/contacts/"+full)).data.contact_call_status,original);
+  await s.request("POST","/api/calls",{...call,mark_do_not_call:true});
+  assert.equal((await s.request("GET","/api/contacts/"+full)).data.contact_call_status,"DNC");
+});

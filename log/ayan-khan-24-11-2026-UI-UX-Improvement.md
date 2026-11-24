@@ -275,3 +275,7 @@ Linked opportunities use actual persisted stage enum, explicit nullable value/cu
 ## 32. BDE workflow integration hardening
 
 Add current-loaded-list previous/next navigation with draft-loss guard (no cross-page claims), latest logged communication excluding internal notes, visible DNC caution, server-returned task assignee, tenant-scoped opportunity account verification, explicit platform assignee requirement, narrow-screen control fixes, and browser regressions for all three milestones. Preserve actual BDE permission policy: employees may create work for themselves and update own work state, not arbitrary assignment/deadline changes. No automated outreach, fake delivery, meeting calendar integration or implied successful contact. Full DB/browser validation remains a release gate.
+
+## 33. Final release hardening
+
+One focused commit addresses final eight findings. Explicit DNC preference opt-in with edit permission and transactional write; audited activity corrections and soft deletion; narrow employee reschedule policy (only self-created open tasks, never manager-assigned or other users); completion timestamps in timeline; shared opportunity commercial data in standalone views; router-level draft blocker with beforeunload; consistent neutral pending marker; explicit legacy write allowlists and tenant reference validation. New third additive migration must be tested on disposable database. No redesign, dependencies or DESIGN.md change. All real runtime/DB verification pending.

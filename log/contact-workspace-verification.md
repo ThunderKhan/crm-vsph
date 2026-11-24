@@ -141,3 +141,7 @@ Apply both additive migrations in disposable database, generate Prisma and run b
 ### BDE workflow final verification
 
 New browser regressions cover call + follow-up, notes and email, relationship, opportunity creation/edit, due filters and current-list navigation. Prior tests updated for intentional behavior changes, including neutral pending status, open work no longer appearing under historical dates, richer search and explicit admin assignee. Run all Node suites, native Prisma generate/validate, backend tests, disposable MySQL migrations and real browser suite; verify BDE employee role end-to-end and error/race paths. Do not claim production-ready without these gates.
+
+### Final eight-finding hardening
+
+Validate three additive migrations on disposable database; verify field allowlists and tenant-scoped relationships in legacy call/opportunity endpoints, explicit DNC opt-in, correction revision conflicts and audit snapshots, employee self-created open-task due-date only authorization, completion timestamp grouping, full opportunity fields, router blocker and neutral pending dot. Run frontend build/lint, all utility suites, backend tests and Playwright. Router provider now uses a data router for supported useBlocker; verify all CRM routes, browser history and preview navigation. No production migration or rendered checks performed remotely.

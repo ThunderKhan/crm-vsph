@@ -693,6 +693,9 @@ model contact_activity_entry {
   entry_description String @db.Text
   entry_occurred_at DateTime
   entry_created_at DateTime @default(now())
+  entry_deleted_at DateTime?
+  entry_revision Int @default(0)
+  entry_audit Json?
 
   @@index([tenant_fk, contact_fk, entry_occurred_at], map: "contact_entries_tenant_contact_occurred_idx")
   @@index([contact_fk])

@@ -123,3 +123,9 @@ test("manual communication search and latest interaction exclude internal notes"
   assert.deepEqual(activityHistory([],[],"note",{entries}).map(item=>item.record.entry_id),["n"]);
   assert.deepEqual(contactActivitySummary([],[],Date.now(),entries).lastInteraction,{kind:"email",date:"2026-11-24T12:00:00Z"});
 });
+
+test("completed tasks use actual completion date while legacy records retain creation date",()=>{
+  const task={task_id:"a",task_status:"COMPLETED",task_created_at:"2026-11-01",task_completed_at:"2026-11-24"};
+  const legacy={...task,task_id:"b",task_completed_at:null};
+  assert.deepEqual(activityHistory([], [legacy,task],"task").map(item=>item.date),["2026-11-24","2026-11-01"]);
+});

@@ -4,7 +4,7 @@ import { api } from "../../utils/api";
 import Modal from "../ui/Modal";
 import { SaveGlyph } from "./ContactMotion";
 import { useDialogExit } from "./useDialogExit";
-import { allowedTaskStatuses, assignableTaskUser, localTaskDue, taskEditPatch, taskStatusLabel, menuFocusIndex } from "./contactMotionUtils.js";
+import { allowedTaskStatuses, assignableTaskUser, localTaskDue, taskEditPatch, taskStatusLabel, menuFocusIndex, canRescheduleTask } from "./contactMotionUtils.js";
 
 export function TaskStatusControl({record,access,busy,onStatus}) {
   const options=allowedTaskStatuses(record,access);
@@ -48,43 +48,45 @@ export function TaskStatusControl({record,access,busy,onStatus}) {
 }
 
 export function ContactTaskEditor({record,access,onClose,onSave}) {
+  const rescheduleOnly=canRescheduleTask(record,access);
   const [draft,setDraft]=useState(()=>({subject:record.task_subject||"",description:record.task_description||"",priority:record.task_priority||"NORMAL",due:localTaskDue(record.task_due_date),assignee:record.task_user_fk||""}));
   const [users,setUsers]=useState([]), [loadingUsers,setLoadingUsers]=useState(true), [userError,setUserError]=useState("");
   const [busy,setBusy]=useState(false),[error,setError]=useState("");
   const lock=useRef(false), formId=useId();
   const {closing,close}=useDialogExit(onClose);
   useEffect(()=>{
+    if(rescheduleOnly)return;
     let active=true;
     api.get("/api/users?limit=100").then(result=>{
       if(!result.success||!Array.isArray(result.data))throw new Error("Could not load assignees.");
       if(active)setUsers(result.data.filter(user=>assignableTaskUser(user,access.role,record.tenant_fk)));
     }).catch(e=>{if(active)setUserError(e.message||"Could not load assignees.");}).finally(()=>{if(active)setLoadingUsers(false);});
     return ()=>{active=false;};
-  },[access.role,record.tenant_fk]);
+  },[access.role,record.tenant_fk,rescheduleOnly]);
   const set=(key,value)=>setDraft(prev=>({...prev,[key]:value}));
   async function submit(e){
     e.preventDefault();if(lock.current||closing)return;
     setError("");lock.current=true;setBusy(true);
     try{
-      const patch=taskEditPatch(record,draft);
+      const patch=rescheduleOnly?(draft.due===localTaskDue(record.task_due_date)?{}:{task_due_date:draft.due?new Date(draft.due).toISOString():null}):taskEditPatch(record,draft);
       if(patch.task_user_fk&&!users.some(user=>user.user_id===patch.task_user_fk))throw new Error("Choose an available assignee.");
       if(Object.keys(patch).length)await onSave(record,patch);
       close();
     }catch(err){setError(err.message||"Could not save task. Try again.");}
     finally{lock.current=false;setBusy(false);}
   }
-  return <Modal isOpen workspaceMotion busy={busy} closing={closing} onClose={()=>{if(!lock.current)close();}} title="Edit task" footer={<><button type="button" className="cw-button" disabled={busy||closing} onClick={close}>Cancel</button><button type="submit" form={formId} className="cw-button cw-primary cw-save-button" data-state={busy?"pending":"idle"} disabled={busy||closing}><SaveGlyph state={busy?"pending":"idle"}/>{busy?"Saving…":"Save changes"}</button></>}>
+  return <Modal isOpen workspaceMotion busy={busy} closing={closing} onClose={()=>{if(!lock.current)close();}} title={rescheduleOnly?"Reschedule task":"Edit task"} footer={<><button type="button" className="cw-button" disabled={busy||closing} onClick={close}>Cancel</button><button type="submit" form={formId} className="cw-button cw-primary cw-save-button" data-state={busy?"pending":"idle"} disabled={busy||closing}><SaveGlyph state={busy?"pending":"idle"}/>{busy?"Saving…":"Save changes"}</button></>}>
     <form id={formId} className="cw-form cw-task-edit-form" onSubmit={submit} aria-busy={busy} noValidate>
       <fieldset className="cw-form-fields" disabled={busy||closing}>
-        <label>Task subject<input required autoFocus value={draft.subject} onChange={e=>set("subject",e.target.value)}/></label>
+        {!rescheduleOnly&&<><label>Task subject<input required autoFocus value={draft.subject} onChange={e=>set("subject",e.target.value)}/></label>
         <label>Description<textarea rows={4} value={draft.description} onChange={e=>set("description",e.target.value)}/></label>
-        <label>Priority<select value={draft.priority} onChange={e=>set("priority",e.target.value)}><option value="LOW">Low</option><option value="NORMAL">Normal</option><option value="HIGH">High</option></select></label>
-        <label>Due date and time<input type="datetime-local" value={draft.due} onChange={e=>set("due",e.target.value)}/></label>
-        <label>Assignee<select value={draft.assignee} disabled={loadingUsers||!!userError||!users.length} onChange={e=>set("assignee",e.target.value)}>
+        <label>Priority<select value={draft.priority} onChange={e=>set("priority",e.target.value)}><option value="LOW">Low</option><option value="NORMAL">Normal</option><option value="HIGH">High</option></select></label></>}
+        <label>Due date and time<input type="datetime-local" autoFocus={rescheduleOnly} value={draft.due} onChange={e=>set("due",e.target.value)}/></label>
+        {!rescheduleOnly&&<><label>Assignee<select value={draft.assignee} disabled={loadingUsers||!!userError||!users.length} onChange={e=>set("assignee",e.target.value)}>
           {!users.some(user=>user.user_id===record.task_user_fk)&&<option value={record.task_user_fk||""}>{record.user?.user_name||"Current assignee"}</option>}
           {users.map(user=><option key={user.user_id} value={user.user_id}>{user.user_name}</option>)}
         </select></label>
-        {userError&&<p className="cw-muted" role="status">{userError} Existing assignment will be preserved.</p>}
+        {userError&&<p className="cw-muted" role="status">{userError} Existing assignment will be preserved.</p>}</>}
       </fieldset>
       {error&&<p role="alert" className="cw-error">{error}</p>}
     </form>

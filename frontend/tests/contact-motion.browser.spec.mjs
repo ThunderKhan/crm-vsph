@@ -490,3 +490,47 @@ test("due filters and current-page contact navigation support daily prospect wor
   await page.getByRole("button",{name:"Previous contact",exact:true}).click();
   await expect(page.getByRole("heading",{name:/Priya Anjali Kapoor/})).toBeVisible();
 });
+
+test("DNC opt-in and audited manual activity corrections preserve workspace behavior",async({page})=>{
+  await page.goto(url);
+  const history=page.getByRole("region",{name:"Activity history"});
+  await openActivity(page,"Log a call");
+  const dialog=page.getByRole("dialog",{name:"Log a call"});
+  await dialog.getByLabel("Subject / outcome").fill("Call preference");
+  await dialog.getByLabel("Call notes").fill("Requested no more calls");
+  await dialog.getByLabel("Call outcome").selectOption("DNC");
+  await dialog.getByRole("checkbox",{name:"Mark contact as do not call"}).check();
+  await dialog.getByRole("button",{name:"Save call",exact:true}).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText(/Do not call — check/)).toBeVisible();
+  await openActivity(page,"Add note");
+  await page.getByRole("dialog").getByLabel("Subject").fill("Correction example");
+  await page.getByRole("dialog").getByLabel("Note",{exact:true}).fill("Original note");
+  await page.getByRole("dialog").getByRole("button",{name:"Save activity"}).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await history.getByRole("button",{name:"Expand details: Correction example"}).click();
+  await history.getByRole("button",{name:"Edit activity",exact:true}).click();
+  await page.getByRole("dialog").getByLabel("Note",{exact:true}).fill("Corrected note");
+  await page.getByRole("dialog").getByRole("button",{name:"Save changes"}).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(history.getByText("Corrected note",{exact:true})).toBeVisible();
+  await history.getByRole("button",{name:"Delete activity",exact:true}).click();
+  await page.getByRole("dialog").getByRole("button",{name:"Delete activity",exact:true}).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(history.getByRole("heading",{name:"Correction example"})).toHaveCount(0);
+});
+test("router navigation protects retained drafts from prospect and module navigation",async({page})=>{
+  await page.goto(url);
+  await openActivity(page,"Log a call");
+  await page.getByLabel("Subject / outcome").fill("Retained draft");
+  await cancelActivity(page);
+  page.once("dialog",dialog=>dialog.dismiss());
+  await page.getByRole("button",{name:"Minimal contact",exact:true}).click();
+  await expect(page.getByRole("heading",{name:/Priya Anjali Kapoor/})).toBeVisible();
+  await openActivity(page,"Log a call");
+  await expect(page.getByLabel("Subject / outcome")).toHaveValue("Retained draft");
+  await cancelActivity(page);
+  page.once("dialog",dialog=>dialog.accept());
+  await page.getByRole("button",{name:"Minimal contact",exact:true}).click();
+  await expect(page.getByRole("heading",{name:/Neel Shah/})).toBeVisible();
+});

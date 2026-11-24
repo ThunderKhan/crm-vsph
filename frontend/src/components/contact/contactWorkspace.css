@@ -399,7 +399,7 @@
 .cw-filter-option .cw-filter-option-check { margin-left:auto; color:var(--cw-accent); opacity:0; transition:opacity var(--motion-micro) var(--ease-out); }
 .cw-filter-option[data-selected="true"] .cw-filter-option-check { opacity:1; }
 .cw-filter-status-dot { width:10px; height:10px; margin:0 3px; border-radius:50%; background:var(--cw-secondary); flex:none; }
-.cw-filter-status-dot[data-status="TODO"] { background:var(--cw-danger); }
+.cw-filter-status-dot[data-status="TODO"] { background:var(--cw-secondary); }
 .cw-filter-status-dot[data-status="IN_PROGRESS"] { background:var(--cw-accent); }
 .cw-filter-status-dot[data-status="BLOCKED"] { background:var(--cw-warning); }
 .cw-filter-status-dot[data-status="COMPLETED"] { background:var(--cw-success); }
@@ -619,3 +619,5 @@
 .cw-opportunity-info h3 .cw-link svg { flex:none; }
 .cw-activity-form .cw-filter-mine input { width:18px; min-width:18px; min-height:18px; padding:0; }
 @media(max-width:480px){.cw-contact-caution{margin-inline:16px;}}
+
+.cw-destructive { background:var(--cw-danger); border-color:var(--cw-danger); color:white; }
