@@ -2,8 +2,21 @@ import { prisma } from "../lib/prisma.js";
 import { findOrCreateIndustry } from "../lib/industries.js";
 import { getTenantFilter } from "../middleware/auth.middleware.js";
 
-// Fallback account types until an AccountType enum is added to the Prisma schema
-const ACCOUNT_TYPES = ["Customer", "Partner", "Reseller", "Vendor", "Other"];
+// The DB enum stores uppercase values; the form shows friendly labels.
+const ACCOUNT_TYPES = ["Customer", "Prospect", "Partner", "Reseller", "Distributor", "Competitor"];
+
+const ACCOUNT_TYPE_BY_LABEL = {
+  CUSTOMER: "CUSTOMER",
+  PROSPECT: "PROSPECT",
+  PARTNER: "PARTNER",
+  RESELLER: "RESELLER",
+  DISTRIBUTOR: "DISTRIBUTOR",
+  COMPETITOR: "COMPETITER", // legacy enum spelling
+  COMPETITER: "COMPETITER",
+};
+
+export const normalizeAccountType = (value) =>
+  ACCOUNT_TYPE_BY_LABEL[String(value || "").trim().toUpperCase()] || undefined;
 
 export const getAccountTypes = async (req, res) => {
   try {
@@ -262,7 +275,7 @@ export const createAccount = async (req, res) => {
         account_code: generatedCode,
         account_name,
         account_owner_fk: resolvedOwnerId,
-        account_type: account_type || undefined,
+        account_type: normalizeAccountType(account_type),
         account_phone,
         account_email,
         account_city: account_city || billing_city || "",
@@ -347,7 +360,7 @@ export const updateAccount = async (req, res) => {
       dataToUpdate.account_city = account_city || billing_city || "";
     }
     if (account_website !== undefined) dataToUpdate.account_website = account_website;
-    if (account_type !== undefined) dataToUpdate.account_type = account_type || undefined;
+    if (account_type !== undefined) dataToUpdate.account_type = normalizeAccountType(account_type);
     if (account_phone !== undefined) dataToUpdate.account_phone = account_phone;
     if (account_email !== undefined) dataToUpdate.account_email = account_email;
     if (account_country !== undefined || billing_country !== undefined) {
