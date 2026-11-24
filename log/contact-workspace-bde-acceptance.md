@@ -1,6 +1,6 @@
 # BDE acceptance — contact workspace
 
-Status: pending actual business development executive acceptance. Automated regression evidence does not substitute for real workflow testing.
+Status: deferred by project owner on 2026-11-24; not a prerequisite for opening the upstream PR. Automated regression evidence does not substitute for actual BDE acceptance. Retain this checklist for later user feedback.
 
 Use a staging account with representative synthetic contact data. Do not use live customer records or send real outreach. Use the actual employee role and repeat permission-sensitive scenarios with an administrator and a restricted account.
 
@@ -19,4 +19,4 @@ Use a staging account with representative synthetic contact data. Do not use liv
 
 Record participant role, date, task completion, errors, unnecessary clicks and actionable feedback. Do not claim acceptance until a real BDE has completed the scenarios and the responsible reviewer has signed off.
 
-Release gates: strict contact lint, production build, browser suite, disposable MySQL baseline + migrations, backend integration, existing-database staging migration plan, BDE acceptance, and upstream review. Repository-wide lint debt remains separately documented.
+Release gates: strict contact lint, production build, browser suite, disposable MySQL baseline + migrations, backend integration, existing-database staging migration plan and upstream review. BDE acceptance is deferred for now. Repository-wide lint debt remains separately documented.
