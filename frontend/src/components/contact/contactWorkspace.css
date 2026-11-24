@@ -157,3 +157,8 @@
   .cw-workspace *, .cw-dialog, .cw-edit-dialog, .cw-dialog::backdrop, .cw-edit-dialog::backdrop, .cw-edit-dialog * { animation:none !important; transition:none !important; }
   .cw-button:not(:disabled):active,.cw-icon:not(:disabled):active,.cw-menu,.cw-dialog,.cw-edit-dialog { transform:none; }
 }
+
+/* Align popovers with their trigger without overflowing narrow viewports. */
+.cw-menu[data-align="right"] { right:0; left:auto; transform-origin:top right; }
+.cw-menu[data-align="left"] { left:0; right:auto; transform-origin:top left; }
+.cw-menu { max-width:calc(100vw - 40px); }

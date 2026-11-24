@@ -15,6 +15,7 @@ const blankEmail = { subject:"", body:"", recipient:"" };
 
 function MoreActions({ canEdit, canDelete, onCampaign, onDelete, code }) {
   const [open, setOpen] = useState(false);
+  const [align,setAlign] = useState("right");
   const container = useRef(null), trigger = useRef(null), menu = useRef(null);
   const id = useId();
   function close(focus = false) { setOpen(false); if (focus) trigger.current?.focus(); }
@@ -35,10 +36,15 @@ function MoreActions({ canEdit, canDelete, onCampaign, onDelete, code }) {
       buttons[next]?.focus();
     }
   }
-  const openMenu = () => { setOpen(true); requestAnimationFrame(() => items()[0]?.focus()); };
+  const openMenu = (last = false) => {
+    const bounds = trigger.current?.getBoundingClientRect();
+    setAlign(bounds && bounds.right < 224 ? "left" : "right");
+    setOpen(true);
+    requestAnimationFrame(() => { const buttons = items(); buttons[last ? buttons.length-1 : 0]?.focus(); });
+  };
   return <div className="cw-menu-anchor" ref={container} onKeyDown={keyDown}>
-    <button type="button" className="cw-button cw-icon" ref={trigger} aria-label="More contact actions" aria-haspopup="menu" aria-expanded={open} aria-controls={id} onClick={() => open ? close(true) : openMenu()} onKeyDown={e => { if (e.key === "ArrowDown" && !open) { e.stopPropagation(); e.preventDefault(); openMenu(); } }}><MoreHorizontal size={20}/></button>
-    <div id={id} role="menu" aria-label="Contact actions" className="cw-menu" data-open={open} inert={!open} ref={menu}>
+    <button type="button" className="cw-button cw-icon" ref={trigger} aria-label="More contact actions" aria-haspopup="menu" aria-expanded={open} aria-controls={id} onClick={() => open ? close(true) : openMenu()} onKeyDown={e => { if (["ArrowDown","ArrowUp"].includes(e.key) && !open) { e.stopPropagation(); e.preventDefault(); openMenu(e.key === "ArrowUp"); } }}><MoreHorizontal size={20}/></button>
+    <div id={id} role="menu" aria-label="Contact actions" className="cw-menu" data-open={open} data-align={align} inert={!open} ref={menu}>
       {canEdit && <button type="button" role="menuitem" onClick={() => { close(true); onCampaign(); }}><UserPlus size={16}/> Add to campaign</button>}
       {code && <button type="button" role="menuitem" onClick={async () => { close(true); try { await navigator.clipboard.writeText(code); toast.success("Contact ID copied"); } catch { toast.error("Could not copy contact ID"); } }}><Copy size={16}/> Copy contact ID</button>}
       {canDelete && <button type="button" role="menuitem" className="cw-danger-text" onClick={() => { close(true); onDelete(); }}><Trash2 size={16}/> Delete contact</button>}
@@ -109,6 +115,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const [edit,setEdit] = useState(false), [focusCampaign,setFocusCampaign] = useState(false), [deleting,setDeleting] = useState(false), [deletePending,setDeletePending] = useState(false), [deleteError,setDeleteError] = useState("");
   const composerId = useId(), composer = useRef(null), quickActions = useRef(null), saveLock = useRef(false), deleteLock = useRef(false);
   const canEdit = canDoAction("CONTACTS","EDIT"), canDelete = canDoAction("CONTACTS","DELETE"), canCall = canDoAction("CONTACTS","CREATE");
+  const canAssignCampaign = canEdit && hasModule("CAMPAIGNS") && canDoAction("CAMPAIGNS","VIEW");
   const canViewTasks = hasModule("TASKS") && canDoAction("TASKS","VIEW");
   const canTask = hasModule("TASKS") && canDoAction("TASKS","CREATE");
   const endpoint = `/api/contacts/${encodeURIComponent(contactId)}`;
@@ -217,7 +224,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
         <div className="cw-identity-side"><div className="cw-actions">
           {canEdit && <button type="button" className="cw-button" onClick={()=>{setFocusCampaign(false);setEdit(true);}}><Edit size={16}/> Edit contact</button>}
           {canCall && !mode && <button type="button" className="cw-button cw-primary" onClick={()=>openComposer("call")} disabled={!!pending}><Phone size={16}/> Log call</button>}
-          {(canEdit || canDelete || contact.contact_code) && <MoreActions canEdit={canEdit && hasModule("CAMPAIGNS") && canDoAction("CAMPAIGNS","VIEW")} canDelete={canDelete} code={contact.contact_code} onCampaign={()=>{setFocusCampaign(true);setEdit(true);}} onDelete={()=>{setDeleteError("");setDeleting(true);}}/>}
+          {(canAssignCampaign || canDelete || contact.contact_code) && <MoreActions canEdit={canAssignCampaign} canDelete={canDelete} code={contact.contact_code} onCampaign={()=>{setFocusCampaign(true);setEdit(true);}} onDelete={()=>{setDeleteError("");setDeleting(true);}}/>}
         </div><p className="cw-muted">Owner: {contact.contact_owner?.user_name || "Not assigned"}</p></div>
       </section>
       <div className="cw-tabs cw-main-tabs" role="group" aria-label="Contact workspace views">
@@ -253,13 +260,13 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
                 <button type="submit" className="cw-button cw-primary" disabled={!!pending || (mode!=="email" && historyLoading) || (mode==="email" && !recipients.length)}>{pending ? "Saving…" : displayMode==="call" ? "Save call" : displayMode==="task" ? "Create task" : "Open email client"}</button></div></div>
               </form>}
             </div></Expandable>
-            {feedback && <p className="cw-feedback" role="status"><CheckCircle size={16}/>{feedback}</p>}
+            {feedback && <p className="cw-feedback" role="status"><CheckCircle size={16} aria-hidden="true"/>{feedback}</p>}
           </section>
           <Timeline calls={calls} tasks={tasks} loading={historyLoading} error={historyError} filter={filter} setFilter={setFilter} canViewTasks={canViewTasks} onRetry={retryHistory}/>
         </div>
         <ContactProperties contact={contact}/>
       </div> : <Opportunities opportunities={contact.opportunities || []}/>}
-      {edit && canEdit && <AddContactModal isOpen={edit} onClose={()=>setEdit(false)} onSuccess={()=>{setEdit(false);setRevision(v=>v+1);onChanged?.();}} contactToEdit={contact} workspaceMotion focusCampaign={focusCampaign}/>}
+      {edit && canEdit && <AddContactModal isOpen={edit} onClose={()=>setEdit(false)} onSuccess={()=>{setEdit(false);setRevision(v=>v+1);onChanged?.();}} contactToEdit={contact} workspaceMotion focusCampaign={focusCampaign} canAssignCampaign={canAssignCampaign}/>}
       {deleting && canDelete && <DeleteDialog name={name} pending={deletePending} error={deleteError} onClose={()=>setDeleting(false)} onConfirm={confirmDelete}/>}
     </>}
   </div>;

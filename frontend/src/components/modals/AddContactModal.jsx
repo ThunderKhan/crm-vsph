@@ -15,6 +15,7 @@ const AddContactModal = ({
   defaultAccountId,
   workspaceMotion = false,
   focusCampaign = false,
+  canAssignCampaign = false,
 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -165,7 +166,7 @@ const AddContactModal = ({
   }, [isOpen, contactToEdit]);
 
   useEffect(() => {
-    if (!isOpen || !workspaceMotion || !focusCampaign) return;
+    if (!isOpen || !workspaceMotion || !canAssignCampaign) return;
     let cancelled = false;
     const load = async () => {
       setCampaignLoading(true);
@@ -184,7 +185,7 @@ const AddContactModal = ({
     };
     load();
     return () => { cancelled = true; };
-  }, [isOpen,workspaceMotion,focusCampaign]);
+  }, [isOpen,workspaceMotion,canAssignCampaign]);
 
   useEffect(() => {
     if (!isOpen || !workspaceMotion || !focusCampaign || campaignLoading) return;
@@ -206,6 +207,7 @@ const AddContactModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading || (workspaceMotion && focusCampaign && (campaignLoading || campaignError))) return;
     setLoading(true);
     setError("");
 
@@ -273,7 +275,7 @@ const AddContactModal = ({
             ? "Contact updated successfully!"
             : "Contact created successfully!",
         );
-        document.body.style.overflow = "hidden";
+        if (!workspaceMotion) document.body.style.overflow = "hidden";
         setFieldErrors({});
         onSuccess();
         onClose();
@@ -312,6 +314,7 @@ const AddContactModal = ({
         type="button"
         variant="secondary"
         onClick={onClose}
+        disabled={workspaceMotion && loading}
         className="text-vsph-navy hover:bg-vsph-grey"
       >
         Cancel
@@ -320,7 +323,7 @@ const AddContactModal = ({
         type="submit"
         form="add-contact-form"
         variant="primary"
-        disabled={loading}
+        disabled={loading || (workspaceMotion && focusCampaign && (campaignLoading || !!campaignError))}
         className="min-w-[120px]"
       >
         {loading ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
@@ -701,7 +704,7 @@ const AddContactModal = ({
                 <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
                   Campaign
                 </label>
-                {workspaceMotion && focusCampaign ? <>
+                {workspaceMotion && canAssignCampaign ? <>
                   <select ref={campaignRef} aria-label="Campaign" value={formData.contact_campaign_fk || ""} disabled={campaignLoading || !!campaignError} onChange={e => setFormData({...formData,contact_campaign_fk:e.target.value})}>
                     <option value="">Not assigned</option>
                     {contactToEdit?.contact_campaign_fk && !workspaceCampaigns.some(c => c.campaign_id === contactToEdit.contact_campaign_fk) && <option value={contactToEdit.contact_campaign_fk}>{contactToEdit.contact_campaign?.campaign_name || "Current campaign"}</option>}
@@ -709,7 +712,7 @@ const AddContactModal = ({
                   </select>
                   {campaignLoading && <p role="status" className="text-sm text-slate-600">Loading campaigns…</p>}
                   {campaignError && <p role="alert" className="text-sm text-rose-700">{campaignError} Close and reopen to retry.</p>}
-                </> : <SearchableSelect
+                </> : workspaceMotion ? <p className="text-sm text-slate-600">{contactToEdit?.contact_campaign?.campaign_name || "Not assigned"}</p> : <SearchableSelect
                   options={campaigns}
                   value={formData.contact_campaign_fk}
                   onChange={(val) =>

@@ -2,7 +2,7 @@
 
 **Date:** 24 November 2026  
 **Decision owner:** Ayan Khan  
-**Status:** Design direction and micro-interaction plan approved; implementation and validation pending.  
+**Status:** Redesign implemented on feature branch for local review; full build/browser/API validation pending.  
 **Implementation owner:** ChatGPT (in collaboration with Ayan Khan). No separate coding agent is required.  
 **Scope:** Contact detail workspace under /v2/contacts, not a global CRM redesign.
 
@@ -159,3 +159,19 @@ Keep changes focused and componentized where useful; preserve existing API contr
 - 2026-11-24: User requested this durable repository log for future reference. This is the approved design baseline; it is not evidence that the redesign has shipped.
 
 Future work: reference this file together with frontend/DESIGN.md before editing the contact workspace. Record material deviations with date, reason, tradeoff and validation outcome. Update implementation status and evidence after the actual work is complete.
+
+## 7. Implementation update — 24 November 2026
+
+Feature branch: `feat/contact-workspace-redesign`. One organization PR after local acceptance; do not merge or deploy before review.
+
+| Milestone | Implementation |
+| --- | --- |
+| M1 | Route-backed contact workspace; no overlay height trap; identity and primary navigation |
+| M2 | Grouped fields, independent call/task timeline, expandable composer, honest mail-client action, opportunities |
+| M3 | Scoped CSS motion, native workspace dialogs, anchored menu, focus and reduced-motion handling |
+| M4 | Existing VSPH logo in navigation, source-derived 64x64 favicon, browser title |
+| M5 | Repeatable utility tests and local browser/API verification checklist |
+
+The original Add to Campaign opened a create-campaign modal and the contact editor did not load its campaign choices. The feature uses the existing contact update workflow with permission-aware campaign loading and a focused campaign selection, not a new backend mutation. Keep the standard modal path for unrelated screens. The favicon is cropped from existing brand artwork rather than a newly invented logo. No animation dependency introduced; no changes to DESIGN.md, API or schema.
+
+Implementation commits: `c86d3cb` (workspace), `cb73b88` (motion and brand), followed by the verification/polish commit. See [contact-workspace-verification.md](contact-workspace-verification.md) for local commands, the test matrix and limitations. Seven utility tests passed using Node.js 22 against a blob-matched copy of the utility module; full Vite/lint/browser/API verification remains pending. No upstream repository changes.

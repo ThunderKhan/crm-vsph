@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { ChevronDown, Copy, ExternalLink, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { emailLink, phoneLink, safeWebLink, humanize, present, formatDate } from "./contactWorkspaceUtils.js";
@@ -24,6 +24,11 @@ function Property({ label, value, href, to, copy = false, fallback = "Not provid
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const hasValue = present(value);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(timer);
+  }, [copied]);
   async function copyValue() {
     try { await navigator.clipboard.writeText(String(value)); setCopied(true); setCopyError(false); }
     catch { setCopyError(true); }
