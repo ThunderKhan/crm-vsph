@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { ArrowLeft, MoreHorizontal, Phone, CheckCircle, FileText, Copy, Trash2, UserPlus, ChevronDown } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, Phone, CheckCircle, FileText, Copy, Trash2, UserPlus, ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { api } from "../utils/api";
 import { readSessionValue } from "../utils/session.js";
@@ -9,7 +9,7 @@ import ContactProperties, { Expandable } from "./contact/ContactProperties";
 import { SlidingTabs, SaveGlyph, CopyGlyph, useCopyFeedback, Tooltip, ContactSkeleton } from "./contact/ContactMotion";
 import { useDialogExit } from "./contact/useDialogExit";
 import { activityKey, requiredActivityFields, taskStatusLabel, nextTaskCompletion, completionActor } from "./contact/contactMotionUtils.js";
-import { activityHistory, groupActivityByDate, activityTime, contactName, emailLink, usableEmail, formatDate, humanize, taskDueDate } from "./contact/contactWorkspaceUtils.js";
+import { activityHistory, groupActivityByDate, activityTime, filterActivity, contactName, emailLink, usableEmail, formatDate, humanize, taskDueDate } from "./contact/contactWorkspaceUtils.js";
 import "./contact/contactWorkspace.css";
 
 const errorMessage = (response, fallback) => response?.message || response?.error || fallback;
@@ -103,7 +103,7 @@ function TaskCompletionMeta({ record }) {
   </>;
 }
 
-function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle, expanded, onExpand }) {
+function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle, expanded, onExpand, alphabetical }) {
   const {kind,record,date}=item;
   const call=kind==="call", Icon=call?Phone:CheckCircle;
   const subject=(call?record.call_subject:record.task_subject) || (call?"Call":"Untitled task");
@@ -121,16 +121,16 @@ function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, o
     <span className="cw-event-icon"><Icon size={18} aria-hidden="true"/><span className="cw-sr">{call?"Call":"Task"}</span></span>
     <div className="cw-event-content">
       <div className="cw-event-top">
+        <button type="button" className="cw-event-disclosure" aria-label={`${expanded?"Collapse":"Expand"} details: ${subject}`} aria-expanded={expanded} aria-controls={detailsId} onClick={toggle}><ChevronDown className="cw-chevron" size={18} aria-hidden="true"/></button>
         <div className="cw-event-summary">
           <h3>{subject}</h3>
           <div className="cw-event-summary-meta">
             {!call && <span className="cw-task-status" data-status={record.task_status} role="status">{taskStatusLabel(record.task_status)}</span>}
-            <span className="cw-event-time">{activityTime(date)}</span>
+            <span className="cw-event-time">{alphabetical ? formatDate(date)||"Date unavailable" : activityTime(date)}</span>
           </div>
         </div>
         <div className="cw-event-actions">
-          {!call && <button type="button" role="checkbox" className="cw-task-check" aria-checked={done} aria-disabled={!next||updating} aria-busy={updating} aria-label={`Complete task: ${subject || "Untitled task"}`} title={updating ? "Saving status…" : !next ? "Status cannot be changed here" : done ? "Reopen task" : "Mark complete"} onClick={()=>{if(next&&!updating)onTaskToggle(record);}}><span className="cw-task-check-box" aria-hidden="true">{updating ? <span className="cw-task-spinner"/> : <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path pathLength="1" d="m5 12 4 4L19 6"/></svg>}</span></button>}
-          <button type="button" className="cw-event-disclosure" aria-label={`${expanded?"Collapse":"Expand"} details: ${subject}`} aria-expanded={expanded} aria-controls={detailsId} onClick={toggle}><ChevronDown className="cw-chevron" size={18} aria-hidden="true"/></button>
+          {!call && <button type="button" role="checkbox" className="cw-task-check" aria-checked={done} aria-disabled={!next||updating} aria-busy={updating} aria-label={`Complete task: ${subject || "Untitled task"}`} title={updating ? "Saving status…" : !next ? "Status cannot be changed here" : done ? "Reopen task" : "Mark complete"} onClick={()=>{if(next&&!updating)onTaskToggle(record);}}><span className="cw-task-check-box" aria-hidden="true"><span className="cw-task-spinner"/><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path pathLength="1" d="m5 12 4 4L19 6"/></svg></span></button>}
         </div>
       </div>
       <Expandable id={detailsId} open={expanded} className="cw-event-expand">
@@ -153,20 +153,51 @@ function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, o
 }
 
 function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTasks, onRetry, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle }) {
-  const items=activityHistory(calls,tasks,filter);
-  const groups=groupActivityByDate(items);
+  const [sort,setSort]=useState("newest"), [status,setStatus]=useState("all"), [priority,setPriority]=useState("all");
+  const [query,setQuery]=useState(""), [searchOpen,setSearchOpen]=useState(false), [filterOpen,setFilterOpen]=useState(false);
+  const searchId=useId(), filterId=useId(), searchRef=useRef(null), searchButton=useRef(null), filterRoot=useRef(null), filterButton=useRef(null);
+  const taskFilters=filter!=="call" && canViewTasks;
+  const activeStatus=taskFilters?status:"all", activePriority=taskFilters?priority:"all";
+  const count=Number(sort!=="newest")+Number(activeStatus!=="all")+Number(activePriority!=="all");
+  const allItems=activityHistory(calls,tasks,filter);
+  const items=filterActivity(allItems,{query,status:activeStatus,priority:activePriority,sort});
+  const alphabetical=sort==="az"||sort==="za";
+  const groups=alphabetical?[{key:"alphabetical",label:null,items}]:groupActivityByDate(items);
+  function resetFilters(){setSort("newest");setStatus("all");setPriority("all");}
+  function closeSearch(){setSearchOpen(false);setQuery("");searchButton.current?.focus();}
+  useEffect(()=>{
+    if(!filterOpen)return;
+    const outside=e=>{if(!filterRoot.current?.contains(e.target))setFilterOpen(false);};
+    const escape=e=>{if(e.key==="Escape"){setFilterOpen(false);filterButton.current?.focus();}};
+    document.addEventListener("pointerdown",outside);document.addEventListener("keydown",escape);
+    return ()=>{document.removeEventListener("pointerdown",outside);document.removeEventListener("keydown",escape);};
+  },[filterOpen]);
   const [expandedKeys,setExpandedKeys]=useState(()=>new Set());
   function toggle(key){setExpandedKeys(prev=>{const next=new Set(prev);if(next.has(key))next.delete(key);else next.add(key);return next;});}
   return <section className="cw-panel cw-history-panel" aria-labelledby="cw-history-heading">
-    <div className="cw-panel-header"><h2 id="cw-history-heading">Activity history</h2><span className="cw-muted">Newest first</span></div>
+    <div className="cw-panel-header"><h2 id="cw-history-heading">Activity history</h2>
+      <div className="cw-history-controls">
+        <button ref={searchButton} type="button" className="cw-icon cw-history-search-button" aria-label="Search activities" aria-expanded={searchOpen} aria-controls={searchId} onClick={()=>{if(searchOpen)closeSearch();else{setSearchOpen(true);setFilterOpen(false);requestAnimationFrame(()=>searchRef.current?.focus());}}}><Search size={18}/></button>
+        <div className="cw-menu-anchor cw-filter-anchor" ref={filterRoot}>
+          <button ref={filterButton} type="button" className="cw-button cw-filter-button" aria-expanded={filterOpen} aria-controls={filterId} onClick={()=>setFilterOpen(v=>!v)}><SlidersHorizontal size={16}/> Filter{count>0&&<span className="cw-filter-count" aria-label={count+" active filters"}>{count}</span>}</button>
+          <div id={filterId} className="cw-menu cw-filter-menu" data-open={filterOpen} data-align="right" inert={!filterOpen} aria-hidden={!filterOpen}>
+            <label>Sort by<select value={sort} onChange={e=>setSort(e.target.value)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="az">Alphabetical (A–Z)</option><option value="za">Alphabetical (Z–A)</option></select></label>
+            {taskFilters && <><label>Task status<select value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All statuses</option><option value="TODO">Pending</option><option value="IN_PROGRESS">In progress</option><option value="BLOCKED">Blocked</option><option value="COMPLETED">Completed</option></select></label>
+            <label>Priority<select value={priority} onChange={e=>setPriority(e.target.value)}><option value="all">All priorities</option><option value="HIGH">High</option><option value="NORMAL">Normal</option><option value="LOW">Low</option></select></label></>}
+            <button type="button" onClick={resetFilters}>Reset filters</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <Expandable id={searchId} open={searchOpen}><div className="cw-history-search"><Search size={18} aria-hidden="true"/><input ref={searchRef} type="search" aria-label="Search activity subjects" placeholder="Search activities…" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Escape")closeSearch();}}/><button type="button" className="cw-icon" aria-label="Close search" onClick={closeSearch}><X size={18}/></button></div></Expandable>
     <SlidingTabs className="cw-history-tabs" label="Filter activity" options={[["all","All activity"],["call","Calls"],...(canViewTasks ? [["task","Tasks"]] : [])]} value={filter} onChange={setFilter}/>
     {error && <div className="cw-error cw-history-error" role="alert">{error} <button type="button" className="cw-link" onClick={onRetry}>Retry</button></div>}
-    {loading ? <ContactSkeleton history/> : items.length===0 ? <div className="cw-empty cw-history-empty"><FileText size={44} strokeWidth={1.4} aria-hidden="true"/><h3>{error ? "Activity unavailable" : filter==="all" ? "Activity history appears here" : filter==="call" ? "No calls yet" : "No tasks yet"}</h3><p>{error ? "Retry to load the history." : filter==="all" ? "Calls and tasks in chronological order." : "Recorded interactions will appear here."}</p></div> :
+    {loading ? <ContactSkeleton history/> : items.length===0 ? <div className="cw-empty cw-history-empty"><FileText size={44} strokeWidth={1.4} aria-hidden="true"/><h3>{error ? "Activity unavailable" : (query.trim()||activeStatus!=="all"||activePriority!=="all") ? "No matching activities" : filter==="all" ? "Activity history appears here" : filter==="call" ? "No calls yet" : "No tasks yet"}</h3><p>{error ? "Retry to load the history." : (query.trim()||activeStatus!=="all"||activePriority!=="all") ? "Try changing your filters or search query." : filter==="all" ? "Calls and tasks in chronological order." : "Recorded interactions will appear here."}</p>{!error&&(query.trim()||activeStatus!=="all"||activePriority!=="all")&&<button type="button" className="cw-button" onClick={()=>{resetFilters();setQuery("");}}>Clear filters</button>}</div> :
       <div className="cw-timeline">{groups.map(group=><section className="cw-timeline-group" key={group.key}>
-        <h3 className="cw-timeline-date">{group.label}</h3>
+        {group.label&&<h3 className="cw-timeline-date">{group.label}</h3>}
         <ol className="cw-timeline-list">{group.items.map(item=>{
           const key=activityKey(item.kind,item.record);
-          return <ActivityNode key={key} item={item} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={onTaskToggle} expanded={expandedKeys.has(key)} onExpand={toggle}/>;
+          return <ActivityNode key={key} item={item} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={onTaskToggle} expanded={expandedKeys.has(key)} onExpand={toggle} alphabetical={alphabetical}/>;
         })}</ol>
       </section>)}</div>}
   </section>;

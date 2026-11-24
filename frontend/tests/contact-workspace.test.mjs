@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   present, humanize, contactName, safeWebLink, usableEmail,
-  emailLink, phoneLink, formatDate, taskDueDate, activityHistory, groupActivityByDate, activityTime,
+  emailLink, phoneLink, formatDate, taskDueDate, activityHistory, groupActivityByDate, activityTime, filterActivity,
 } from "../src/components/contact/contactWorkspaceUtils.js";
 
 test("missing properties are distinguished from zero values", () => {
@@ -59,4 +59,15 @@ test("timeline date grouping preserves sorted order and separates missing dates"
   assert.equal(activityTime(null),"Time unavailable");
   assert.equal(activityTime("invalid"),"Time unavailable");
   assert.equal(activityTime(items[0].date),new Date(items[0].date).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}));
+});
+
+test("activity search, task filters and global alphabetical sorting compose",()=>{
+  const items=activityHistory([{call_subject:"Beta call",call_created_at:"2026-11-24"}],[{task_subject:"Zulu task",task_status:"TODO",task_priority:"HIGH",task_created_at:"2026-11-23"},{task_subject:"Alpha task",task_status:"COMPLETED",task_priority:"LOW",task_created_at:"2026-11-22"}]);
+  const names=rows=>rows.map(x=>x.record.call_subject||x.record.task_subject);
+  assert.deepEqual(names(filterActivity(items,{sort:"az"})),["Alpha task","Beta call","Zulu task"]);
+  assert.deepEqual(names(filterActivity(items,{sort:"za"})),["Zulu task","Beta call","Alpha task"]);
+  assert.deepEqual(names(filterActivity(items,{sort:"oldest"})),["Alpha task","Zulu task","Beta call"]);
+  assert.deepEqual(names(filterActivity(items,{status:"TODO",priority:"HIGH",query:" ZULU "})),["Zulu task"]);
+  assert.deepEqual(filterActivity(items,{status:"TODO",priority:"LOW"}),[]);
+  assert.deepEqual(names(filterActivity(items,{query:"beta"})),["Beta call"]);
 });

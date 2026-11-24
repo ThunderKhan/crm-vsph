@@ -64,3 +64,17 @@ export function activityTime(value) {
   const date=new Date(value);
   return Number.isFinite(date.getTime()) ? date.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}) : "Time unavailable";
 }
+
+export function filterActivity(items,{query="",status="all",priority="all",sort="newest"}={}) {
+  const subject=item=>String(item.kind==="call"?item.record.call_subject||"":item.record.task_subject||"");
+  const q=query.trim().toLocaleLowerCase();
+  const time=item=>present(item.date) && Number.isFinite(new Date(item.date).getTime()) ? new Date(item.date).getTime() : null;
+  return items.filter(item=>(!q||subject(item).toLocaleLowerCase().includes(q)) &&
+    (item.kind==="task" ? (status==="all"||item.record.task_status===status)&&(priority==="all"||item.record.task_priority===priority) : status==="all"&&priority==="all"))
+    .sort((a,b)=>{
+      if(sort==="az"||sort==="za")return subject(a).localeCompare(subject(b),undefined,{sensitivity:"base"})*(sort==="za"?-1:1);
+      const x=time(a),y=time(b);
+      if(x===null||y===null)return x===y?0:x===null?1:-1;
+      return sort==="oldest"?x-y:y-x;
+    });
+}

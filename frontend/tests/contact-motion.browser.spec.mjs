@@ -168,3 +168,28 @@ test("timeline groups by date and reveals individual nodes without changing task
   await expect(history.locator(".cw-timeline-item")).toHaveCount(2);
   await expect(history.locator(".cw-timeline-date")).toHaveCount(2);
 });
+
+test("full header disclosure, search and activity filters work together",async({page})=>{
+  await page.goto(url);
+  const history=page.getByRole("region",{name:"Activity history"});
+  const row=history.locator(".cw-timeline-item").filter({has:page.getByRole("heading",{name:"Schedule product demonstration",exact:true})});
+  const disclosure=row.getByRole("button",{name:"Expand details: Schedule product demonstration"});
+  await disclosure.click({position:{x:12,y:15}});
+  await expect(row.getByRole("button",{name:"Collapse details: Schedule product demonstration"})).toHaveAttribute("aria-expanded","true");
+  await expect(history.locator(".cw-timeline-date").first()).toHaveCSS("display","flex");
+  await history.getByRole("button",{name:"Filter",exact:true}).click();
+  await history.getByLabel("Sort by").selectOption("az");
+  await expect(history.locator(".cw-timeline-date")).toHaveCount(0);
+  await expect(history.locator(".cw-event-summary h3")).toHaveText(["Initial discovery call","Prepare technical proposal","Schedule product demonstration","Technical requirements follow-up"]);
+  await history.getByLabel("Task status").selectOption("TODO");
+  await expect(history.locator(".cw-timeline-item")).toHaveCount(1);
+  await history.getByLabel("Priority").selectOption("HIGH");
+  await expect(history.getByText("No matching activities")).toBeVisible();
+  await history.getByRole("button",{name:"Reset filters"}).click();
+  await page.keyboard.press("Escape");
+  await history.getByRole("button",{name:"Search activities",exact:true}).click();
+  await history.getByRole("searchbox",{name:"Search activity subjects"}).fill("technical");
+  await expect(history.locator(".cw-timeline-item")).toHaveCount(2);
+  await history.getByRole("button",{name:"Close search"}).click();
+  await expect(history.locator(".cw-timeline-item")).toHaveCount(4);
+});
