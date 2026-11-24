@@ -113,3 +113,7 @@ Review thin search focus ring, grouped filter radios/checkmarks/priority chips, 
 ### Skill-led design audit acceptance
 
 Retain all 11 prior browser cases and add one narrow-screen edit/validation regression (12 browser cases expected). Verify 320/375/390/768/1272/1600 CSS px, layout/keyboard and mouse across identity, properties, timeline, status selector, filter menu, activity dialogs, edit contact/campaign dialogs, missing/long/loading/error states and reduced motion. Inspect selected/focus/disabled/loading contrast and popup bounds; compare clean fixture before/after at the same size. Source contrast pairs checked independently; full browser/build and actual Impeccable detector unavailable remotely. See log/contact-workspace-design-audit.md.
+
+### Persistent contact context layout
+
+Expected 25 utility and 13 browser cases. Existing browser assertions updated to the renamed workspace switch, reduced-motion indicator and existing linked opportunity data. New regression checks desktop column geometry and 12px identity/details gap, persistent details disclosure, switching with search/sort/expanded node state, contextual controls, preview URL refresh and mobile order/no horizontal overflow. Test actual production deep links with real auth/backend separately. Run all existing Node suites, build and npm run test:contact-browser. Rendered verification remains pending.

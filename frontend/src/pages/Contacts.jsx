@@ -33,6 +33,7 @@ const Contacts = () => {
   const setViewContactId = (id) => setSearchParams((previous) => {
     const next = new URLSearchParams(previous);
     if (id) next.set("contact_id", id); else next.delete("contact_id");
+    if (!id || id!==previous.get("contact_id")) next.delete("contact_view");
     return next;
   }, { replace: !id });
   const canCreate = canDoAction("CONTACTS", "CREATE");

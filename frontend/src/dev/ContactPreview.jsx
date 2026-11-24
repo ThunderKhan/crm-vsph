@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { MemoryRouter, Routes, Route, Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { MemoryRouter, Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import DashboardV2Layout from "../components/v2/dashboardLayout";
 import Contacts from "../pages/Contacts";
@@ -10,7 +10,7 @@ import { createContactPreviewStore, PREVIEW_SESSION, PREVIEW_SCENARIOS } from ".
 const store = createContactPreviewStore();
 const options = new URLSearchParams(window.location.search);
 const selected = PREVIEW_SCENARIOS.find(s=>s.id===options.get("scenario") || s.label.toLowerCase().split(" ")[0]===options.get("scenario")) || PREVIEW_SCENARIOS[0];
-const initial = "/v2/contacts?contact_id="+selected.id;
+const initial = "/v2/contacts?contact_id="+selected.id+(options.get("contact_view")==="opportunities"?"&contact_view=opportunities":"");
 const clean = options.get("clean")==="1";
 configurePreviewIdentity(PREVIEW_SESSION);
 configurePreviewApi(store.request);
@@ -40,10 +40,23 @@ function OutsideScope() {
   </section>;
 }
 
+// Keep the isolated preview deep-linkable without replacing its MemoryRouter.
+function PreviewViewUrl() {
+  const location=useLocation();
+  useEffect(()=>{
+    const current=new URL(window.location.href);
+    const view=new URLSearchParams(location.search).get("contact_view");
+    if(view==="opportunities")current.searchParams.set("contact_view",view);else current.searchParams.delete("contact_view");
+    if(current.href!==window.location.href)window.history.replaceState(window.history.state,"",current);
+  },[location.search]);
+  return null;
+}
+
 export default function ContactPreview() {
   const [version,setVersion] = useState(0);
   const reset = () => { store.reset(); setVersion(v=>v+1); };
   return <MemoryRouter key={version} initialEntries={[initial]}>
+    <PreviewViewUrl/>
     <Routes>
       <Route element={<DashboardV2Layout previewBanner={clean ? null : <PreviewControls reset={reset}/>} onPreviewExit={()=>window.location.assign("/")}/>}>
         <Route path="/v2/contacts" element={<Contacts/>}/>

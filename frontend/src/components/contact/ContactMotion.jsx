@@ -115,8 +115,10 @@ export function ContactSkeleton({ history=false }) {
   const events=<div className="cw-skeleton-events" aria-hidden="true">{[0,1,2].map(i=><div key={i} className="cw-skeleton-event"><span className="cw-skeleton-dot"/><div>{bar("65%")}{bar("28%")}</div></div>)}</div>;
   if(history)return <div className="cw-skeleton-history" role="status"><span className="cw-sr">Loading activity…</span>{events}</div>;
   return <div className="cw-skeleton-layout" role="status" aria-busy="true"><span className="cw-sr">Loading contact…</span>
-    <div className="cw-panel cw-identity" aria-hidden="true"><span className="cw-skeleton-avatar"/><div className="cw-skeleton-identity">{bar("70%")}{bar("35%")}</div><span className="cw-skeleton-action"/></div>
-    <div className="cw-panel cw-skeleton-tabs" aria-hidden="true">{bar("96px")}{bar("120px")}</div>
-    <div className="cw-grid" aria-hidden="true"><div className="cw-panel cw-properties cw-skeleton-properties">{bar("45%")}{Array.from({length:6},(_,i)=><div className="cw-skeleton-property" key={i}>{bar("35%")}{bar("70%")}</div>)}</div><div className="cw-activity"><div className="cw-panel cw-history-panel cw-skeleton-history"><div className="cw-skeleton-history-heading">{bar("35%")}<div className="cw-skeleton-toolbar">{[0,1,2].map(i=><span className="cw-skeleton-action" key={i}/>)}</div></div><div className="cw-skeleton-history-tabs">{[0,1,2].map(i=><span className="cw-skeleton-bar" key={i}/>)}</div>{events}</div></div></div>
+    <div className="cw-grid cw-record-grid" aria-hidden="true">
+      <div className="cw-panel cw-identity"><div className="cw-identity-main"><span className="cw-skeleton-avatar"/><div className="cw-skeleton-identity">{bar("90%")}{bar("45%")}</div></div><div className="cw-identity-side cw-skeleton-identity-actions"><span className="cw-skeleton-action"/><span className="cw-skeleton-action"/></div></div>
+      <div className="cw-panel cw-activity cw-work-area cw-skeleton-history"><div className="cw-skeleton-history-heading">{bar("40%")}<div className="cw-skeleton-toolbar">{[0,1,2].map(i=><span className="cw-skeleton-action" key={i}/>)}</div></div><div className="cw-skeleton-history-tabs">{[0,1,2].map(i=><span className="cw-skeleton-bar" key={i}/>)}</div>{events}</div>
+      <div className="cw-panel cw-properties cw-skeleton-properties">{bar("45%")}{Array.from({length:6},(_,i)=><div className="cw-skeleton-property" key={i}>{bar("35%")}{bar("70%")}</div>)}</div>
+    </div>
   </div>;
 }
