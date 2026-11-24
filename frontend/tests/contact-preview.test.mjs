@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createContactPreviewStore, PREVIEW_SCENARIOS, PREVIEW_SESSION } from "../src/dev/contactPreviewFixtures.js";
 
-const full=PREVIEW_SCENARIOS[0].id, sparse=PREVIEW_SCENARIOS[1].id, long=PREVIEW_SCENARIOS[2].id;
+const full=PREVIEW_SCENARIOS[0].id, sparse=PREVIEW_SCENARIOS[1].id, long=PREVIEW_SCENARIOS[2].id, reference=PREVIEW_SCENARIOS[3].id;
 const make=()=>{const store=createContactPreviewStore({now:()=>"2026-11-24T12:00:00.000Z"});store.setDelay(0);return store;};
 
 test("seeded scenarios expose production-shaped responses without credentials",async()=>{
@@ -15,6 +15,12 @@ test("seeded scenarios expose production-shaped responses without credentials",a
   assert.equal((await s.request("GET","/api/calls?contact_id="+sparse)).length,0);
   assert.equal((await s.request("GET","/api/contacts/"+sparse)).data.contact_professional_email,undefined);
   assert.equal((await s.request("GET","/api/calls?contact_id="+long)).length,8);
+  const referenceContact=(await s.request("GET","/api/contacts/"+reference)).data;
+  assert.equal(referenceContact.contact_code,"CON-000003");
+  assert.equal(referenceContact.contact_call_status,"CONNECTED");
+  assert.equal(referenceContact.contact_professional_email,"rakesh@example.com");
+  assert.equal((await s.request("GET","/api/calls?contact_id="+reference)).length,0);
+  assert.equal((await s.request("GET","/api/tasks?contact_id="+reference)).data.length,0);
   assert.equal(PREVIEW_SESSION.vsph_auth_token,undefined);
 });
 test("call and task writes persist only in the selected contact",async()=>{
@@ -41,7 +47,7 @@ test("editing and campaign assignment derive relationships, and reset restores s
 test("creation, deletion, pagination, and search operate on the fixture",async()=>{
   const s=make(), result=await s.request("POST","/api/contacts",{contact_firstname:"Demo",contact_lastname:"Record"});
   assert.equal(result.success,true);
-  assert.equal((await s.request("GET","/api/contacts?limit=2")).pagination.totalRecords,4);
+  assert.equal((await s.request("GET","/api/contacts?limit=2")).pagination.totalRecords,5);
   assert.equal((await s.request("GET","/api/search?q=Demo")).length,1);
   assert.equal((await s.request("DELETE","/api/contacts/"+result.data.contact_id)).success,true);
   assert.equal((await s.request("GET","/api/contacts/"+result.data.contact_id)).success,false);

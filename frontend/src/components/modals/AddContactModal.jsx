@@ -276,7 +276,6 @@ const AddContactModal = ({
             ? "Contact updated successfully!"
             : "Contact created successfully!",
         );
-        if (!workspaceMotion) document.body.style.overflow = "hidden";
         setFieldErrors({});
         onSuccess();
         onClose();

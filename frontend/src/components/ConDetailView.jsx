@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { ArrowLeft, MoreHorizontal, Phone, Mail, CheckCircle, ChevronDown, Clock, Edit, Copy, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, Phone, CheckCircle, ChevronDown, FileText, Plus, Copy, Trash2, UserPlus } from "lucide-react";
 import toast from "react-hot-toast";
 import { api } from "../utils/api";
 import { readSessionValue } from "../utils/session.js";
@@ -72,13 +72,13 @@ function DeleteDialog({ name, onConfirm, onClose, pending, error }) {
 
 function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTasks, onRetry }) {
   const items = activityHistory(calls, tasks, filter);
-  return <section className="cw-panel" aria-labelledby="cw-history-heading">
+  return <section className="cw-panel cw-history-panel" aria-labelledby="cw-history-heading">
     <div className="cw-panel-header"><h2 id="cw-history-heading">Activity history</h2><span className="cw-muted">Newest first</span></div>
     <div className="cw-tabs cw-history-tabs" role="group" aria-label="Filter activity">
       {[["all","All activity"],["call","Calls"],...(canViewTasks ? [["task","Tasks"]] : [])].map(([value,label]) => <button type="button" key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}
     </div>
     {error && <div className="cw-error cw-history-error" role="alert">{error} <button type="button" className="cw-link" onClick={onRetry}>Retry</button></div>}
-    {loading ? <p className="cw-empty" role="status">Loading activity…</p> : items.length === 0 ? <div className="cw-empty"><Clock size={28} aria-hidden="true"/><h3>{error ? "Activity unavailable" : filter === "all" ? "No activity yet" : filter === "call" ? "No calls yet" : "No tasks yet"}</h3><p>{error ? "Retry to load the history." : "Recorded interactions will appear here."}</p></div> :
+    {loading ? <p className="cw-empty" role="status">Loading activity…</p> : items.length === 0 ? <div className="cw-empty cw-history-empty"><FileText size={44} strokeWidth={1.4} aria-hidden="true"/><h3>{error ? "Activity unavailable" : filter === "all" ? "Activity history appears here" : filter === "call" ? "No calls yet" : "No tasks yet"}</h3><p>{error ? "Retry to load the history." : filter === "all" ? "Calls and tasks in chronological order." : "Recorded interactions will appear here."}</p></div> :
       <ol className="cw-timeline">{items.map(({kind,record,date}) => {
         const call = kind === "call", Icon = call ? Phone : CheckCircle;
         const subject = call ? record.call_subject : record.task_subject;
@@ -215,16 +215,16 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   if (!isOpen) return null;
   const name=contactName(contact), initials=[contact?.contact_firstname,contact?.contact_lastname].filter(Boolean).map(v=>v[0].toUpperCase()).join("") || "C";
   const recipients=[...new Set([contact?.contact_professional_email,contact?.contact_personal_email].filter(usableEmail))];
-  const actions=[...(canCall ? [{id:"call",label:"Log a call",Icon:Phone}] : []),...(canTask ? [{id:"task",label:"Create task",Icon:CheckCircle}] : []),{id:"email",label:"Compose email",Icon:Mail}];
+  const actions=[...(canCall ? [{id:"call",label:"Log a call"}] : []),...(canTask ? [{id:"task",label:"Create task"}] : []),{id:"email",label:"Compose email"}];
   return <div className="cw-workspace">
-    <button type="button" className="cw-back" onClick={closeWorkspace} disabled={!!pending}><ArrowLeft size={18}/> Contacts</button>
+    <nav className="cw-breadcrumb" aria-label="Breadcrumb"><button type="button" className="cw-back" onClick={closeWorkspace} disabled={!!pending}><ArrowLeft size={16}/> Contacts</button>{contact?.contact_code && <><span aria-hidden="true">/</span><span aria-current="page">{contact.contact_code}</span></>}</nav>
     {loading ? <div className="cw-panel cw-empty" role="status">Loading contact…</div> : !contact ? <div className="cw-panel cw-empty"><h2>Contact unavailable</h2><p role="alert">{loadError || "Contact not found."}</p><button type="button" className="cw-button" onClick={()=>{setLoading(true);setRevision(v=>v+1);}}>Retry</button></div> : <>
       {loadError && <p className="cw-error" role="alert">{loadError}</p>}
       <section className="cw-panel cw-identity">
-        <div className="cw-identity-main"><div className="cw-avatar" aria-hidden="true">{initials}</div><div className="cw-identity-text"><h1>{name}</h1><div className="cw-identity-meta"><span>{contact.contact_code || "No record code"}</span><span className="cw-status" data-connected={contact.contact_call_status==="CONNECTED"}>{contact.contact_call_status==="CONNECTED" && <CheckCircle size={15} aria-hidden="true"/>}{humanize(contact.contact_call_status,"No call status")}</span></div></div></div>
+        <div className="cw-identity-main"><div className="cw-avatar" aria-hidden="true">{initials}</div><div className="cw-identity-text"><h1>{name}</h1><div className="cw-identity-meta"><span>{contact.contact_code || "No record code"}</span><span className="cw-status" data-connected={contact.contact_call_status==="CONNECTED"}><span className="cw-status-dot" aria-hidden="true"/>{humanize(contact.contact_call_status,"No call status")}</span></div></div></div>
         <div className="cw-identity-side"><div className="cw-actions">
-          {canEdit && <button type="button" className="cw-button" onClick={()=>{setFocusCampaign(false);setEdit(true);}}><Edit size={16}/> Edit contact</button>}
-          {canCall && !mode && <button type="button" className="cw-button cw-primary" onClick={()=>openComposer("call")} disabled={!!pending}><Phone size={16}/> Log call</button>}
+          {canEdit && <button type="button" className="cw-button" onClick={()=>{setFocusCampaign(false);setEdit(true);}}>Edit contact</button>}
+          {canCall && (!mode || tab !== "overview") && <button type="button" className={`cw-button ${tab !== "overview" ? "cw-primary" : ""}`} onClick={()=>openComposer("call")} disabled={!!pending}><Plus size={16}/> Log call</button>}
           {(canAssignCampaign || canDelete || contact.contact_code) && <MoreActions canEdit={canAssignCampaign} canDelete={canDelete} code={contact.contact_code} onCampaign={()=>{setFocusCampaign(true);setEdit(true);}} onDelete={()=>{setDeleteError("");setDeleting(true);}}/>}
         </div><p className="cw-muted">Owner: {contact.contact_owner?.user_name || "Not assigned"}</p></div>
       </section>
@@ -235,7 +235,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
         <div className="cw-activity">
           <section className="cw-panel cw-composer-panel" aria-labelledby="cw-composer-heading">
             <div className="cw-panel-header"><h2 id="cw-composer-heading">Quick actions</h2>{mode && <button type="button" className="cw-icon" title="Collapse composer" aria-label="Collapse composer" aria-expanded="true" aria-controls={composerId} disabled={!!pending} onClick={()=>{setMode(null);setSaveError("");quickActions.current?.querySelector(`[data-mode="${mode}"]`)?.focus();}}><ChevronDown size={18} className="cw-chevron-open"/></button>}</div>
-            <div className="cw-quick-actions" ref={quickActions}>{actions.map(({id,label,Icon})=><button type="button" className="cw-button" key={id} data-mode={id} aria-pressed={mode===id} aria-expanded={mode===id} aria-controls={composerId} onClick={()=>openComposer(id)} disabled={!!pending}><Icon size={18}/>{label}</button>)}</div>
+            <div className="cw-quick-actions" ref={quickActions}>{actions.map(({id,label})=><button type="button" className={`cw-button ${!mode && id===actions[0]?.id ? "cw-primary" : ""}`} key={id} data-mode={id} aria-pressed={mode===id} aria-expanded={mode===id} aria-controls={composerId} onClick={()=>openComposer(id)} disabled={!!pending}>{label}</button>)}</div>
             {!mode && <p className="cw-muted cw-composer-hint">Record an interaction or plan a follow-up.</p>}
             <Expandable open={!!mode} id={composerId}><div ref={composer} className="cw-composer">
               {displayMode && <form onSubmit={submit} className="cw-form">

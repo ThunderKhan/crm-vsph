@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { ChevronDown, Copy, ExternalLink, Check } from "lucide-react";
+import { ChevronDown, ChevronRight, Copy, ExternalLink, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { emailLink, phoneLink, safeWebLink, humanize, present, formatDate } from "./contactWorkspaceUtils.js";
 
@@ -60,23 +60,28 @@ function PropertyGroup({ title, children }) {
 }
 
 export default function ContactProperties({ contact: c }) {
+  const [allOpen,setAllOpen] = useState(false);
+  const allId = useId();
   const phone = c.contact_mobile || c.contact_phone;
+  const email = c.contact_professional_email || c.contact_personal_email;
   const billing = c.contact_account_billing_address?.[0] || {};
   const shipping = c.contact_account_shipping_address?.[0] || {};
   const fields = (entries) => entries.map(([label, value, options]) => <Property key={label} label={label} value={value} {...options}/>);
   const address = (data, prefix) => fields([["Street", data[prefix+"_street"]], ["City", data[prefix+"_city"]], ["State / province", data[prefix+"_state"]], ["Postal code", data[prefix+"_zip"]], ["Country", data[prefix+"_country"]], ["Phone", data[prefix+"_phone"], {href:phoneLink(data[prefix+"_phone"])}]]);
   return <aside className="cw-panel cw-properties" aria-labelledby="contact-properties-title">
-    <h2 id="contact-properties-title" className="cw-panel-heading">Contact information</h2>
-    <dl className="cw-property-list">
+    <h2 id="contact-properties-title" className="cw-panel-heading">Contact details</h2>
+    <dl className="cw-property-list cw-summary-properties">
       {fields([
-        ["Professional email", c.contact_professional_email, {href: emailLink(c.contact_professional_email), copy: true}],
-        ["Mobile number", phone, {href: phoneLink(phone), copy: true}],
+        ["Email", email, {href: emailLink(email), copy: true}],
+        ["Phone", phone, {href: phoneLink(phone), copy: true}],
         ["Account", c.account?.account_name, {to: c.contact_account_fk ? `/v2/accounts?account_id=${encodeURIComponent(c.contact_account_fk)}` : null, fallback:"Not assigned"}],
         ["Designation", c.contact_designation],
         ["Contact owner", c.contact_owner?.user_name, {fallback:"Not assigned"}],
         ["Campaign", c.contact_campaign?.campaign_name, {fallback:"Not assigned"}],
       ])}
     </dl>
+    <div className="cw-details-footer"><button type="button" className="cw-details-toggle" aria-expanded={allOpen} aria-controls={allId} onClick={()=>setAllOpen(v=>!v)}>{allOpen ? "Hide additional contact details" : "View all contact details"}<ChevronRight size={18} className="cw-details-chevron" aria-hidden="true"/></button></div>
+    <div id={allId} className="cw-all-details" data-open={allOpen} inert={!allOpen} aria-hidden={!allOpen}><div className="cw-all-details-inner">
     <PropertyGroup title="Professional information">
       {fields([["Title",c.contact_title],["Department",c.contact_department],["Role",c.contact_role],["Reports to",c.contact_reportsto],["Industry",c.contact_industry?.industry_name],["Employee size",c.contact_employee_size],["Level",c.contact_level_field],["Segment",c.contact_segment],["Partner name",c.contact_partner_name],["Profile link",c.contact_profile_link,{href:safeWebLink(c.contact_profile_link),external:true}],["Navigator link",c.contact_navigator_link,{href:safeWebLink(c.contact_navigator_link),external:true}]])}
     </PropertyGroup>
@@ -94,5 +99,6 @@ export default function ContactProperties({ contact: c }) {
     <PropertyGroup title="Pickup and drop">
       {fields([["Pickup date",formatDate(c.contact_pickup_date,true)],["Drop date",formatDate(c.contact_drop_date,true)],["Pickup time",c.contact_pickup_time],["Drop time",c.contact_drop_time],["Pickup location",c.contact_pickup_location],["Drop location",c.contact_drop_location]])}
     </PropertyGroup>
+    </div></div>
   </aside>;
 }

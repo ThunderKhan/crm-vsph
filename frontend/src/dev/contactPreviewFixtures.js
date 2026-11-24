@@ -14,6 +14,7 @@ export const PREVIEW_SCENARIOS = Object.freeze([
   { id: "preview-contact-full", label: "Full contact" },
   { id: "preview-contact-sparse", label: "Minimal contact" },
   { id: "preview-contact-long", label: "Long content" },
+  { id: "preview-contact-reference", label: "Reference layout" },
 ]);
 
 const copy = value => JSON.parse(JSON.stringify(value));
@@ -51,6 +52,7 @@ const full = {
   ],
 };
 const sparse = { ...common, contact_id: PREVIEW_SCENARIOS[1].id, contact_code: "CON-000022", contact_firstname: "Neel", contact_lastname: "Shah", opportunities: [] };
+const reference = { ...common, contact_id: PREVIEW_SCENARIOS[3].id, contact_code: "CON-000003", contact_firstname: "Rakesh", contact_lastname: "Sharma", contact_professional_email: "rakesh@example.com", contact_call_status: "CONNECTED", opportunities: [] };
 const long = {
   ...full, contact_id: PREVIEW_SCENARIOS[2].id, contact_code: "CON-000023",
   contact_salutation: "DR", contact_firstname: "Alexandria", contact_middlename: "Marie Elizabeth", contact_lastname: "Montgomery-Richardson",
@@ -97,7 +99,7 @@ export function createContactPreviewStore({ now = () => new Date().toISOString()
   let contacts, calls, tasks, serial, failNext, delay, generation;
   generation = 0;
   function reset() {
-    contacts = copy([full,sparse,long]); calls = copy(seedCalls); tasks = copy(seedTasks);
+    contacts = copy([full,sparse,long,reference]); calls = copy(seedCalls); tasks = copy(seedTasks);
     serial = 0; failNext = false; delay = 250; generation++;
   }
   reset();
