@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronRight, Copy, ExternalLink, Check } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { CopyGlyph, useCopyFeedback } from "./ContactMotion";
 import { Link } from "react-router-dom";
 import { emailLink, phoneLink, safeWebLink, humanize, present, formatDate } from "./contactWorkspaceUtils.js";
 
@@ -21,18 +22,8 @@ export function Expandable({ open, id, children, className = "" }) {
 }
 
 function Property({ label, value, href, to, copy = false, fallback = "Not provided", external = false, singleLine = false }) {
-  const [copied, setCopied] = useState(false);
-  const [copyError, setCopyError] = useState(false);
+  const {copied,error:copyError,copy:copyValue} = useCopyFeedback(value);
   const hasValue = present(value);
-  useEffect(() => {
-    if (!copied) return;
-    const timer = setTimeout(() => setCopied(false), 1500);
-    return () => clearTimeout(timer);
-  }, [copied]);
-  async function copyValue() {
-    try { await navigator.clipboard.writeText(String(value)); setCopied(true); setCopyError(false); }
-    catch { setCopyError(true); }
-  }
   return <div className="cw-property">
     <dt>{label}</dt>
     <dd className={!hasValue ? "cw-muted" : ""}>
@@ -40,7 +31,7 @@ function Property({ label, value, href, to, copy = false, fallback = "Not provid
         {hasValue && to ? <Link className="cw-property-text" to={to}>{value}</Link> : hasValue && href ?
           <a className={`cw-property-text${singleLine ? " cw-property-single-line" : ""}${external ? " cw-property-external" : ""}`} href={href} title={singleLine || external ? String(value) : undefined} target={external ? "_blank" : undefined} rel={external ? "noopener noreferrer" : undefined}>{external ? <><span className="cw-external-label">{value}</span><ExternalLink size={14} aria-hidden="true" /></> : value}</a> :
           <span className={`cw-property-text${singleLine && hasValue ? " cw-property-single-line" : ""}`} title={singleLine && hasValue ? String(value) : undefined}>{hasValue ? String(value) : fallback}</span>}
-        {copy && hasValue && <button type="button" className="cw-icon" aria-label={copied ? `${label} copied` : `Copy ${label}`} title={copied ? "Copied" : `Copy ${label}`} onClick={copyValue}>{copied ? <Check size={16} /> : <Copy size={16} />}</button>}
+        {copy && hasValue && <button type="button" className="cw-icon" aria-label={copied ? `${label} copied` : `Copy ${label}`} title={copied ? "Copied" : `Copy ${label}`} onClick={copyValue}><CopyGlyph copied={copied}/></button>}
       </div>
       {copy && <span className="cw-sr" role="status">{copied ? `${label} copied` : ""}</span>}
       {copyError && <span role="alert" className="cw-error-text">{singleLine ? "Could not copy. Open all contact details to select the full value." : "Could not copy. Select the value to copy it manually."}</span>}
