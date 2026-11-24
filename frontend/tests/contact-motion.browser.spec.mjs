@@ -132,7 +132,7 @@ test("task completion is confirmed by API, persists across filters and preserves
   await page.goto(url);
   const row=page.locator(".cw-timeline-item").filter({has:page.getByRole("heading",{name:"Schedule product demonstration",exact:true})});
   const check=row.getByRole("checkbox",{name:"Complete task: Schedule product demonstration"});
-  await expect(row.locator(".cw-task-status-trigger > span")).toHaveCSS("color","rgb(209, 36, 47)");
+  await expect(row.locator(".cw-task-status-trigger > span")).toHaveCSS("color","rgb(82, 100, 122)");
   await expect(check).not.toBeChecked();
   await expect(page.getByRole("button",{name:"Log call",exact:true})).toHaveCount(0);
   await openActivity(page,"Log a call");
@@ -207,8 +207,8 @@ test("full header disclosure, search and activity filters work together",async({
   await history.getByRole("button",{name:"Reset filters"}).click();
   await page.keyboard.press("Escape");
   await history.getByRole("button",{name:"Search activities",exact:true}).click();
-  await history.getByRole("searchbox",{name:"Search activity subjects"}).fill("technical");
-  await expect(history.locator(".cw-timeline-item")).toHaveCount(2);
+  await history.getByRole("searchbox",{name:"Search activities and notes"}).fill("Technical requirements follow-up");
+  await expect(history.locator(".cw-timeline-item")).toHaveCount(1);
   await history.getByRole("button",{name:"Close search"}).click();
   await expect(history.locator(".cw-timeline-item")).toHaveCount(4);
 });
@@ -249,7 +249,7 @@ test("activity creation preserves filters and drafts and supports task and email
   const history=page.getByRole("region",{name:"Activity history"});
   await expect(page.getByRole("heading",{name:"Quick actions",exact:true})).toHaveCount(0);
   await history.getByRole("button",{name:"Search activities",exact:true}).click();
-  const input=history.getByRole("searchbox",{name:"Search activity subjects"});
+  const input=history.getByRole("searchbox",{name:"Search activities and notes"});
   await expect(input).toBeFocused();
   await expect(input).toHaveCSS("outline-width","1px");
   await expect(input).toHaveCSS("outline-offset","-1px");
@@ -345,7 +345,7 @@ test("workspace views keep contact context, activity state and deep links",async
   expect(Math.abs(p.y-(i.y+i.height)-12)).toBeLessThanOrEqual(2);
   await details.getByRole("button",{name:"View all contact details"}).click();
   await history.getByRole("button",{name:"Search activities"}).click();
-  await history.getByRole("searchbox",{name:"Search activity subjects"}).fill("Schedule");
+  await history.getByRole("searchbox",{name:"Search activities and notes"}).fill("Schedule");
   await history.getByRole("button",{name:"Filter",exact:true}).click();
   await history.locator(".cw-filter-option").filter({hasText:"Oldest first"}).click();
   await page.keyboard.press("Escape");

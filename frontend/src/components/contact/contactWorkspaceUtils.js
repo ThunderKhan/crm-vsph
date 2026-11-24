@@ -75,7 +75,7 @@ export function filterActivity(items, options = {}) {
   return selectActivity(items, options, false);
 }
 
-function selectActivity(items, { query = "", status = "all", priority = "all", sort = "newest" }, chronologicalTies) {
+function selectActivity(items, { query = "", status = "all", priority = "all", sort = "newest", deadline = "all", mine = false, userId, now = Date.now() }, chronologicalTies) {
   const search = query.trim().toLocaleLowerCase();
   const alphabetical = sort === "az" || sort === "za";
   const matching = [];
@@ -84,12 +84,15 @@ function selectActivity(items, { query = "", status = "all", priority = "all", s
     if (kind === "task") {
       if (status !== "all" && record.task_status !== status) continue;
       if (priority !== "all" && record.task_priority !== priority) continue;
-    } else if (status !== "all" || priority !== "all") {
+      if (deadline !== "all" && taskDeadline(record, now) !== deadline) continue;
+      if (mine && (!userId || record.task_user_fk !== userId)) continue;
+    } else if (status !== "all" || priority !== "all" || deadline !== "all" || mine) {
       continue;
     }
 
     const subject = String((kind === "call" ? record.call_subject : record.task_subject) || "");
-    if (search && !subject.toLocaleLowerCase().includes(search)) continue;
+    const description = kind === "call" ? record.call_description : record.task_description;
+    if (search && !subject.toLocaleLowerCase().includes(search) && !String(description || "").toLocaleLowerCase().includes(search)) continue;
 
     // Parse each matching record once instead of inside the sort comparator.
     const timestamp = !alphabetical || chronologicalTies
@@ -117,4 +120,42 @@ function selectActivity(items, { query = "", status = "all", priority = "all", s
     matching.sort((a, b) => compareDates(a, b, sort === "oldest"));
   }
   return matching.map(entry => entry.item);
+}
+
+export function taskDeadline(task, now) {
+  if (task.task_status === "COMPLETED") return "completed";
+  const due = present(task.task_due_date) ? new Date(task.task_due_date) : null;
+  if (!due || !Number.isFinite(due.getTime())) return "unscheduled";
+  const today = new Date(now);
+  if (due.getTime() < now) return "overdue";
+  return due.toDateString() === today.toDateString() ? "today" : "upcoming";
+}
+
+export function splitActivity(items, now) {
+  const open = [], past = [];
+  for (const item of items) {
+    if (item.kind === "task" && item.record.task_status !== "COMPLETED") open.push(item);
+    else past.push(item);
+  }
+  const dueTime = item => taskDeadline(item.record, now) === "unscheduled"
+    ? Infinity : new Date(item.record.task_due_date).getTime();
+  open.sort((a,b) => {
+    const x = dueTime(a), y = dueTime(b);
+    return x === y ? 0 : x - y;
+  });
+  return {open, past};
+}
+
+export function contactActivitySummary(calls, tasks, now) {
+  let lastCall = null, nextTask = null;
+  for (const call of calls) {
+    const time = present(call.call_created_at) ? new Date(call.call_created_at).getTime() : NaN;
+    if (Number.isFinite(time) && (!lastCall || time > new Date(lastCall.call_created_at).getTime())) lastCall = call;
+  }
+  for (const task of tasks) {
+    const deadline = taskDeadline(task, now);
+    if (deadline === "completed" || deadline === "unscheduled") continue;
+    if (!nextTask || new Date(task.task_due_date) < new Date(nextTask.task_due_date)) nextTask = task;
+  }
+  return { lastCall, nextTask };
 }

@@ -52,7 +52,7 @@ function PropertyGroup({ title, children }) {
   </section>;
 }
 
-function ContactProperties({ contact: c }) {
+function ContactProperties({ contact: c, summary, historyLoading, historyError, canViewTasks }) {
   const [allOpen,setAllOpen] = useState(false);
   const allId = useId();
   const phone = c.contact_mobile || c.contact_phone;
@@ -69,6 +69,11 @@ function ContactProperties({ contact: c }) {
         ["Phone", phone, {href: phoneLink(phone), copy: true, singleLine: true}],
         ["Account", c.account?.account_name, {to: c.contact_account_fk ? `/v2/accounts?account_id=${encodeURIComponent(c.contact_account_fk)}` : null, fallback:"Not assigned"}],
         ["Designation", c.contact_designation],
+        ["Role",c.contact_role],
+        ["Record status",humanize(c.contact_status)],
+        ["Call status",humanize(c.contact_call_status)],
+        ["Last logged call",summary?.lastCall?formatDate(summary.lastCall.call_created_at):null,{fallback:historyLoading?"Loading…":historyError?"Unavailable":"No calls logged"}],
+        ...(canViewTasks?[["Next scheduled task",summary?.nextTask?`${summary.nextTask.task_subject || "Untitled task"} · ${formatDate(summary.nextTask.task_due_date)}`:null,{fallback:historyLoading?"Loading…":historyError?"Unavailable":"No scheduled task"}]]:[]),
         ["Contact owner", c.contact_owner?.user_name, {fallback:"Not assigned"}],
         ["Campaign", c.contact_campaign?.campaign_name, {fallback:"Not assigned"}],
       ])}

@@ -594,3 +594,13 @@
  .cw-record-grid .cw-skeleton-toolbar .cw-skeleton-action:nth-child(2) { width:68px; }
  .cw-record-grid .cw-skeleton-toolbar .cw-skeleton-action:last-child { width:112px; }
 }
+
+/* Actionable work stays within the approved activity workspace. */
+.cw-section-heading { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:16px; font-weight:600; margin:0 0 12px; }
+.cw-section-heading .cw-muted { font-size:13px; font-weight:400; }
+.cw-upcoming { padding-bottom:12px; margin-bottom:12px; border-bottom:1px solid var(--cw-divider); }
+.cw-deadline { font-size:13px; overflow-wrap:anywhere; }
+.cw-deadline[data-deadline="overdue"] { color:var(--cw-danger); font-weight:600; }
+.cw-task-status[data-status="TODO"],.cw-task-status[data-status="PENDING"] { color:var(--cw-secondary); }
+.cw-filter-mine { display:flex; gap:8px; align-items:center; min-height:44px; margin-top:8px; font-size:14px; cursor:pointer; }
+.cw-filter-mine input { width:18px; height:18px; min-height:0; accent-color:var(--cw-accent); }

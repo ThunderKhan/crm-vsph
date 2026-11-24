@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   present, humanize, contactName, safeWebLink, usableEmail,
-  emailLink, phoneLink, formatDate, taskDueDate, activityHistory, groupActivityByDate, activityTime, filterActivity,
+  emailLink, phoneLink, formatDate, taskDueDate, activityHistory, groupActivityByDate, activityTime, filterActivity, taskDeadline, splitActivity, contactActivitySummary,
 } from "../src/components/contact/contactWorkspaceUtils.js";
 
 test("missing properties are distinguished from zero values", () => {
@@ -91,4 +91,25 @@ test("combined selection preserves chronological ties, missing dates and input r
   assert.deepEqual(ids(activityHistory(calls,tasks,"all",{query:" SAME ",status:"TODO",priority:"HIGH"})),["t-new"]);
   assert.deepEqual(ids(activityHistory(calls,tasks,"call",{status:"TODO"})),[]);
   assert.equal(activityHistory(calls,tasks)[0].record,tasks[0]);
+});
+
+test("action queue sorts due work and separates completed tasks, without duplicating records",()=>{
+  const now=new Date(2026,10,24,12).getTime();
+  const tasks=[
+    {task_id:"later",task_status:"TODO",task_due_date:new Date(2026,10,26).toISOString()},
+    {task_id:"late",task_status:"IN_PROGRESS",task_due_date:new Date(2026,10,23).toISOString()},
+    {task_id:"today",task_status:"BLOCKED",task_due_date:new Date(2026,10,24,15).toISOString()},
+    {task_id:"none",task_status:"TODO",task_due_date:null},
+    {task_id:"done",task_status:"COMPLETED",task_due_date:new Date(2026,10,23).toISOString()}
+  ];
+  const calls=[{call_id:"call",call_created_at:new Date(now).toISOString(),call_description:"Discussed annual budget"}];
+  assert.deepEqual(tasks.map(t=>taskDeadline(t,now)),["upcoming","overdue","today","unscheduled","completed"]);
+  const result=splitActivity(activityHistory(calls,tasks),now);
+  assert.deepEqual(result.open.map(i=>i.record.task_id),["late","today","later","none"]);
+  assert.equal(result.past.length,2);
+  assert.equal(contactActivitySummary(calls,tasks,now).nextTask.task_id,"late");
+  assert.equal(contactActivitySummary(calls,tasks,now).lastCall.call_id,"call");
+  assert.equal(activityHistory(calls,tasks,"all",{deadline:"overdue",now})[0].record.task_id,"late");
+  assert.equal(activityHistory(calls,tasks,"all",{query:"annual budget"})[0].record.call_id,"call");
+  assert.equal(activityHistory(calls,tasks,"all",{mine:true,userId:"missing"}).length,0);
 });

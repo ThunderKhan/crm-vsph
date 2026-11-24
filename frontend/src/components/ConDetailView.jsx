@@ -13,7 +13,7 @@ import { ActivityComposerDialog } from "./contact/ActivityComposerDialog";
 import { ContactTaskEditor, TaskStatusControl } from "./contact/ContactTaskEditor";
 import { useDialogExit } from "./contact/useDialogExit";
 import { activityKey, requiredActivityFields, nextTaskCompletion, completionActor, allowedTaskStatuses, canManageTaskDetails, menuFocusIndex } from "./contact/contactMotionUtils.js";
-import { activityHistory, groupActivityByDate, activityTime, contactName, emailLink, usableEmail, formatDate, humanize, taskDueDate } from "./contact/contactWorkspaceUtils.js";
+import { activityHistory, groupActivityByDate, activityTime, contactName, emailLink, usableEmail, formatDate, humanize, taskDueDate, taskDeadline, splitActivity, contactActivitySummary } from "./contact/contactWorkspaceUtils.js";
 import "./contact/contactWorkspace.css";
 
 const errorMessage = (response, fallback) => response?.message || response?.error || fallback;
@@ -108,13 +108,14 @@ function TaskCompletionMeta({ record }) {
   </>;
 }
 
-function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle, onTaskStatus, onTaskEdit, expanded, onExpand, alphabetical }) {
+function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle, onTaskStatus, onTaskEdit, expanded, onExpand, alphabetical, now, upcoming=false }) {
   const {kind,record,date}=item;
   const call=kind==="call", Icon=call?Phone:CheckCircle;
   const subject=(call?record.call_subject:record.task_subject) || (call?"Call":"Untitled task");
   const description=call?record.call_description:record.task_description;
   const key=activityKey(kind,record), detailsId=useId();
   const done=!call && record.task_status==="COMPLETED";
+  const deadline=call||done?null:taskDeadline(record,now);
   const next=call ? null : nextTaskCompletion(record,taskAccess);
   const updating=!call && !!taskWrites[record.task_id];
   const taskError=!call && taskErrors[record.task_id];
@@ -131,7 +132,8 @@ function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, o
           <h3>{subject}</h3>
           <div className="cw-event-summary-meta">
             {!call && <TaskStatusControl record={record} access={taskAccess} busy={updating} onStatus={onTaskStatus}/>}
-            <span className="cw-event-time">{alphabetical ? formatDate(date)||"Date unavailable" : activityTime(date)}</span>
+            {deadline&&<span className="cw-event-time cw-deadline" data-deadline={deadline}>{deadline==="unscheduled"?"No due date":`${deadline==="overdue"?"Overdue · ":deadline==="today"?"Today · ":"Due "}${formatDate(record.task_due_date)}`}</span>}
+            {!upcoming&&<span className="cw-event-time">{alphabetical ? formatDate(date)||"Date unavailable" : activityTime(date)}</span>}
           </div>
         </div>
         <div className="cw-event-actions">
@@ -160,13 +162,14 @@ function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, o
 
 function useActivityView() {
   const [sort,setSort]=useState("newest"), [status,setStatus]=useState("all"), [priority,setPriority]=useState("all");
+  const [deadline,setDeadline]=useState("all"), [mine,setMine]=useState(false);
   const [query,setQuery]=useState(""), [searchOpen,setSearchOpen]=useState(false), [filterOpen,setFilterOpen]=useState(false);
   const [expandedKeys,setExpandedKeys]=useState(()=>new Set());
   const searchId=useId(), searchRef=useRef(null), searchButton=useRef(null);
-  function resetFilters(){setSort("newest");setStatus("all");setPriority("all");}
+  function resetFilters(){setSort("newest");setStatus("all");setPriority("all");setDeadline("all");setMine(false);}
   function closeSearch(){setSearchOpen(false);setQuery("");searchButton.current?.focus();}
   function toggle(key){setExpandedKeys(prev=>{const next=new Set(prev);if(next.has(key))next.delete(key);else next.add(key);return next;});}
-  return {sort,setSort,status,setStatus,priority,setPriority,query,setQuery,searchOpen,setSearchOpen,filterOpen,setFilterOpen,searchId,searchRef,searchButton,expandedKeys,toggle,resetFilters,closeSearch};
+  return {sort,setSort,status,setStatus,priority,setPriority,deadline,setDeadline,mine,setMine,query,setQuery,searchOpen,setSearchOpen,filterOpen,setFilterOpen,searchId,searchRef,searchButton,expandedKeys,toggle,resetFilters,closeSearch};
 }
 
 function WorkspaceSwitch({view,onChange,contentId}) {
@@ -187,43 +190,46 @@ function WorkspaceSwitch({view,onChange,contentId}) {
 }
 
 function ActivityControls({view,filter,canViewTasks,actions,onAddActivity}) {
-  const {sort,setSort,status,setStatus,priority,setPriority,searchOpen,setSearchOpen,filterOpen,setFilterOpen,searchId,searchRef,searchButton,closeSearch,resetFilters}=view;
+  const {sort,setSort,status,setStatus,priority,setPriority,deadline,setDeadline,mine,setMine,searchOpen,setSearchOpen,filterOpen,setFilterOpen,searchId,searchRef,searchButton,closeSearch,resetFilters}=view;
   const taskFilters=filter!=="call" && canViewTasks;
-  const count=Number(sort!=="newest")+Number(taskFilters&&status!=="all")+Number(taskFilters&&priority!=="all");
+  const count=Number(sort!=="newest")+Number(taskFilters&&status!=="all")+Number(taskFilters&&priority!=="all")+Number(taskFilters&&deadline!=="all")+Number(taskFilters&&mine);
   return <div className="cw-history-controls">
         <button ref={searchButton} type="button" className="cw-icon cw-history-search-button" aria-label="Search activities" aria-expanded={searchOpen} aria-controls={searchId} onClick={()=>{if(searchOpen)closeSearch();else{setSearchOpen(true);setFilterOpen(false);requestAnimationFrame(()=>searchRef.current?.focus());}}}><Search size={18} aria-hidden="true"/></button>
-        <ActivityFilters open={filterOpen} onOpen={setFilterOpen} sort={sort} setSort={setSort} status={status} setStatus={setStatus} priority={priority} setPriority={setPriority} taskFilters={taskFilters} count={count} onReset={resetFilters}/>
+        <ActivityFilters open={filterOpen} onOpen={setFilterOpen} sort={sort} setSort={setSort} status={status} setStatus={setStatus} priority={priority} setPriority={setPriority} deadline={deadline} setDeadline={setDeadline} mine={mine} setMine={setMine} taskFilters={taskFilters} count={count} onReset={resetFilters}/>
         <AddActivityMenu actions={actions} onSelect={onAddActivity} onOpen={()=>setFilterOpen(false)}/>
       </div>;
 }
 
-function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTasks, onRetry, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle, onTaskStatus, onTaskEdit, feedback, lastCreated, view }) {
-  const {sort,status,priority,query,setQuery,searchOpen,searchId,searchRef,closeSearch,expandedKeys,toggle,resetFilters}=view;
+function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTasks, onRetry, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle, onTaskStatus, onTaskEdit, feedback, lastCreated, view, now, userId }) {
+  const {sort,status,priority,deadline,mine,query,setQuery,searchOpen,searchId,searchRef,closeSearch,expandedKeys,toggle,resetFilters}=view;
   const taskFilters=filter!=="call" && canViewTasks;
   const activeStatus=taskFilters?status:"all", activePriority=taskFilters?priority:"all";
+  const activeDeadline=taskFilters?deadline:"all", activeMine=taskFilters&&mine;
   const items = useMemo(
-    () => activityHistory(calls, tasks, filter, { query, status: activeStatus, priority: activePriority, sort }),
-    [calls, tasks, filter, query, activeStatus, activePriority, sort]
+    () => activityHistory(calls, tasks, filter, { query, status: activeStatus, priority: activePriority, sort, deadline: activeDeadline, mine: activeMine, userId, now }),
+    [calls, tasks, filter, query, activeStatus, activePriority, sort, activeDeadline, activeMine, userId, now]
   );
   const alphabetical = sort === "az" || sort === "za";
+  const {open,past}=useMemo(()=>splitActivity(items,now),[items,now]);
   const groups = useMemo(
-    () => alphabetical ? [{ key: "alphabetical", label: null, items }] : groupActivityByDate(items),
-    [alphabetical, items]
+    () => alphabetical ? [{ key: "alphabetical", label: null, items }] : groupActivityByDate(past),
+    [alphabetical, items, past]
   );
-  const hasFilters = Boolean(query.trim()) || activeStatus !== "all" || activePriority !== "all";
+  const hasFilters = Boolean(query.trim()) || activeStatus !== "all" || activePriority !== "all" || activeDeadline !== "all" || activeMine;
+  function renderNode(item, upcoming) {
+    const key=activityKey(item.kind,item.record);
+    return <ActivityNode key={key} item={item} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={onTaskToggle} onTaskStatus={onTaskStatus} onTaskEdit={onTaskEdit} expanded={expandedKeys.has(key)} onExpand={toggle} alphabetical={alphabetical} now={now} upcoming={upcoming}/>;
+  }
   return <>
     <h2 className="cw-sr">Activity history</h2>
-    <Expandable id={searchId} open={searchOpen}><div className="cw-history-search"><Search size={18} aria-hidden="true"/><input ref={searchRef} type="search" aria-label="Search activity subjects" placeholder="Search activities…" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Escape")closeSearch();}}/><button type="button" className="cw-icon" aria-label="Close search" onClick={closeSearch}><X size={18} aria-hidden="true"/></button></div></Expandable>
+    <Expandable id={searchId} open={searchOpen}><div className="cw-history-search"><Search size={18} aria-hidden="true"/><input ref={searchRef} type="search" aria-label="Search activities and notes" placeholder="Search activities…" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Escape")closeSearch();}}/><button type="button" className="cw-icon" aria-label="Close search" onClick={closeSearch}><X size={18} aria-hidden="true"/></button></div></Expandable>
     <SlidingTabs className="cw-history-tabs" label="Filter activity" options={[["all","All activity"],["call","Calls"],...(canViewTasks ? [["task","Tasks"]] : [])]} value={filter} onChange={setFilter}/>
     {feedback&&<p className="cw-feedback cw-history-feedback" role="status"><CheckCircle size={16} aria-hidden="true"/>{feedback}{lastCreated&&!items.some(item=>activityKey(item.kind,item.record)===lastCreated)&&" It is hidden by your current view or permissions."}</p>}
     {error && <div className="cw-error cw-history-error" role="alert">{error} <button type="button" className="cw-link" onClick={onRetry}>Retry</button></div>}
     {loading ? <ContactSkeleton history/> : items.length===0 ? <div className="cw-empty cw-history-empty"><FileText size={32} strokeWidth={1.75} aria-hidden="true"/><h3>{error ? "Activity unavailable" : hasFilters ? "No matching activities" : filter==="all" ? "Activity history appears here" : filter==="call" ? "No calls yet" : "No tasks yet"}</h3><p>{error ? "Retry to load the history." : hasFilters ? "Try changing your filters or search query." : filter==="all" ? "Calls and tasks in chronological order." : "Recorded interactions will appear here."}</p>{!error&&hasFilters&&<button type="button" className="cw-button" onClick={()=>{resetFilters();setQuery("");}}>Clear filters</button>}</div> :
-      <div className="cw-timeline">{groups.map(group=><section className="cw-timeline-group" key={group.key}>
+      <div className="cw-timeline">{!alphabetical&&open.length>0&&<section className="cw-timeline-group cw-upcoming"><h3 className="cw-section-heading">Upcoming activities <span className="cw-muted">{open.length} open</span></h3><ol className="cw-timeline-list">{open.map(item=>renderNode(item,true))}</ol></section>}{!alphabetical&&past.length>0&&open.length>0&&<h3 className="cw-section-heading">Past activity</h3>}{groups.map(group=><section className="cw-timeline-group" key={group.key}>
         {group.label&&<h3 className="cw-timeline-date">{group.label}</h3>}
-        <ol className="cw-timeline-list">{group.items.map(item=>{
-          const key=activityKey(item.kind,item.record);
-          return <ActivityNode key={key} item={item} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={onTaskToggle} onTaskStatus={onTaskStatus} onTaskEdit={onTaskEdit} expanded={expandedKeys.has(key)} onExpand={toggle} alphabetical={alphabetical}/>;
-        })}</ol>
+        <ol className="cw-timeline-list">{group.items.map(item=>renderNode(item,false))}</ol>
       </section>)}</div>}
   </>;
 }
@@ -239,6 +245,8 @@ function Opportunities({ opportunities = [] }) {
 
 export default function ConDetailView({ isOpen, onClose, contactId, onChanged }) {
   // The parent keys this component by contact ID, so drafts and requests are isolated per record.
+  const [now,setNow]=useState(Date.now);
+  useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),60000);return ()=>clearInterval(timer);},[]);
   const [contact, setContact] = useState(null), [loading, setLoading] = useState(true), [loadError,setLoadError] = useState("");
   const [taskWrites,setTaskWrites]=useState({}), [taskErrors,setTaskErrors]=useState({});
   const taskLocks=useRef(new Set());
@@ -409,6 +417,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
     } catch(error) { setDeleteError(error.message || "Could not delete contact."); }
     finally { deleteLock.current=false; setDeletePending(false); }
   }
+  const summary=useMemo(()=>contactActivitySummary(calls,tasks,now),[calls,tasks,now]);
   if (!isOpen) return null;
   const name=contactName(contact), initials=[contact?.contact_firstname,contact?.contact_lastname].filter(Boolean).map(v=>v[0].toUpperCase()).join("") || "C";
   const recipients=[...new Set([contact?.contact_professional_email,contact?.contact_personal_email].filter(usableEmail))];
@@ -432,10 +441,10 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
             {tab==="activity"&&<ActivityControls view={activityView} filter={filter} canViewTasks={canViewTasks} actions={actions} onAddActivity={openComposer}/>}
           </div>
           <div id={workspaceContentId} className="cw-work-area-content">
-            {tab==="activity" ? <Timeline calls={calls} tasks={tasks} loading={historyLoading} error={historyError} filter={filter} setFilter={value=>{setNewActivity(null);setFilter(value);}} canViewTasks={canViewTasks} onRetry={retryHistory} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={toggleTask} onTaskStatus={changeTaskStatus} onTaskEdit={editTask} feedback={!mode?feedback:""} lastCreated={lastCreated} view={activityView}/> : <Opportunities opportunities={contact.opportunities || []}/>}
+            {tab==="activity" ? <Timeline calls={calls} tasks={tasks} loading={historyLoading} error={historyError} filter={filter} setFilter={value=>{setNewActivity(null);setFilter(value);}} canViewTasks={canViewTasks} onRetry={retryHistory} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={toggleTask} onTaskStatus={changeTaskStatus} onTaskEdit={editTask} feedback={!mode?feedback:""} lastCreated={lastCreated} view={activityView} now={now} userId={currentUserId}/> : <Opportunities opportunities={contact.opportunities || []}/>}
           </div>
         </section>
-        <ContactProperties contact={contact}/>
+        <ContactProperties contact={contact} summary={summary} historyLoading={historyLoading} historyError={historyError} canViewTasks={canViewTasks}/>
       </div>
       {mode&&<ActivityComposerDialog key={mode} title={actions.find(a=>a.id===mode)?.label} mode={mode} formId={composerId} pending={!!pending} saved={!!savedMode} disabled={(mode!=="email"&&historyLoading)||(mode==="email"&&!recipients.length)} onClose={finishComposer}>
         <form ref={composer} id={composerId} onSubmit={submit} noValidate className="cw-form cw-activity-form" aria-busy={!!pending}>

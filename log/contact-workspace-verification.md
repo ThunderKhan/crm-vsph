@@ -125,3 +125,7 @@ Expected 25 utility and 14 browser cases. Existing regressions retained. New cas
 ### Code-quality refactor acceptance
 
 Expected 27 utility tests and 14 browser tests. Previous browser assertions unchanged. New unit coverage checks single-pass selection, stable chronology/alphabetical ties, invalid dates, immutability and menu navigation boundaries. 432 deterministic comparisons against the preceding selection pipeline passed; available JS harness passed 17/18 workspace/motion tests (URL global unavailable for one existing case). Run all utility scripts, build, and npm run test:contact-browser locally. No measured browser speedup or full lint pass claimed.
+
+### BDE milestone 1
+
+Run all existing suites plus deadline/queue regression. Inspect upcoming and past groups, alphabetical global sorting, due filters, missing dates, search descriptions, task completion movement, restricted task visibility and responsive wrapping. Local rendered/build tests pending.

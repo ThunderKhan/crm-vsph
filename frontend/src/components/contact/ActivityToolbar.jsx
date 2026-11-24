@@ -5,6 +5,7 @@ import { menuFocusIndex } from "./contactMotionUtils.js";
 
 const sorts=[["newest","Newest first",ArrowDownWideNarrow],["oldest","Oldest first",ArrowUpWideNarrow],["az","Alphabetical (A–Z)",ArrowDownAZ],["za","Alphabetical (Z–A)",ArrowUpAZ]];
 const statuses=[["all","All statuses"],["TODO","Pending"],["IN_PROGRESS","In progress"],["BLOCKED","Blocked"],["COMPLETED","Completed"]];
+const deadlines=[["all","Any due date"],["overdue","Overdue"],["today","Due today"],["upcoming","Upcoming"],["unscheduled","No due date"]];
 const priorities=[["all","All priorities"],["HIGH","High"],["NORMAL","Normal"],["LOW","Low"]];
 
 function Options({legend,options,value,onChange,type}) {
@@ -21,7 +22,7 @@ function Options({legend,options,value,onChange,type}) {
   </fieldset>;
 }
 
-export function ActivityFilters({open,onOpen,sort,setSort,status,setStatus,priority,setPriority,taskFilters,count,onReset}) {
+export function ActivityFilters({open,onOpen,sort,setSort,status,setStatus,priority,setPriority,deadline,setDeadline,mine,setMine,taskFilters,count,onReset}) {
   const root=useRef(null), trigger=useRef(null), id=useId();
   const [placement,setPlacement]=useState({side:"bottom",height:480});
   useLayoutEffect(()=>{
@@ -52,7 +53,7 @@ export function ActivityFilters({open,onOpen,sort,setSort,status,setStatus,prior
       <div className="cw-filter-heading"><strong>Filter and sort</strong><button type="button" className="cw-filter-reset" onClick={onReset}>Reset filters</button></div>
       <div className="cw-filter-scroll">
         <Options legend="Sort by" type="sort" options={sorts} value={sort} onChange={setSort}/>
-        {taskFilters&&<><Options legend="Task status" type="status" options={statuses} value={status} onChange={setStatus}/><Options legend="Priority" type="priority" options={priorities} value={priority} onChange={setPriority}/></>}
+        {taskFilters&&<><Options legend="Task status" type="status" options={statuses} value={status} onChange={setStatus}/><Options legend="Priority" type="priority" options={priorities} value={priority} onChange={setPriority}/><Options legend="Due date" type="deadline" options={deadlines} value={deadline} onChange={setDeadline}/><label className="cw-filter-mine"><input type="checkbox" checked={mine} onChange={e=>setMine(e.target.checked)}/> Assigned to me</label></>}
       </div>
       <div className="cw-filter-footer">{count?count+" active "+(count===1?"selection":"selections"):"Default view"}</div>
     </div>
