@@ -25,7 +25,7 @@ export const senderBlockedReason = (email) => {
   return null;
 };
 
-export const sendMail = async ({ from, to, subject, text, replyTo }) => {
+export const sendMail = async ({ from, to, subject, text, html, replyTo }) => {
   if (!process.env.RESEND_API_KEY) {
     const error = new Error("Email sending is not configured. Set RESEND_API_KEY.");
     error.status = 503;
@@ -43,6 +43,7 @@ export const sendMail = async ({ from, to, subject, text, replyTo }) => {
       to: [to],
       subject,
       text,
+      ...(html ? { html } : {}),
       ...(replyTo ? { reply_to: replyTo } : {}),
     }),
   });

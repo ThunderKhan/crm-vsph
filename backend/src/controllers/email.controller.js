@@ -25,6 +25,8 @@ export const sendContactEmail = async (req, res) => {
     let finalTo = String(to || "").trim();
     let finalSubject = "";
     let finalBody = "";
+    let isTemplate = false;
+    let plainTextBody = "";
 
     if (template_id) {
       const template = await prisma.email_template.findFirst({
@@ -54,6 +56,8 @@ export const sendContactEmail = async (req, res) => {
       finalTo = String(template_vars.to || to || "").trim();
       finalSubject = interpolate(template.subject, vars);
       finalBody = template.body_html ? interpolate(template.body_html, vars) : "";
+      plainTextBody = template.body_text ? interpolate(template.body_text, vars) : "";
+      isTemplate = true;
     } else {
       if (!isEmail(finalTo)) {
         return res.status(400).json({ success: false, message: "A valid recipient email is required." });
@@ -66,6 +70,7 @@ export const sendContactEmail = async (req, res) => {
       }
       finalSubject = String(subject).trim();
       finalBody = String(body);
+      plainTextBody = finalBody;
     }
 
     if (!isEmail(finalTo)) {
@@ -76,7 +81,8 @@ export const sendContactEmail = async (req, res) => {
       from: sender,
       to: finalTo,
       subject: finalSubject,
-      text: finalBody,
+      text: plainTextBody,
+      ...(isTemplate ? { html: finalBody } : {}),
       replyTo: sender,
     });
 
