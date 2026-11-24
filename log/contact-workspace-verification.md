@@ -59,3 +59,9 @@ Confirm origin points to ThunderKhan/crm-vsph (git remote -v). If it does not, f
 ## Offline visual review
 
 When backend credentials are unavailable, follow [contact-preview.md](contact-preview.md). The preview exercises the real components against isolated fixture data; it does not replace the live API test matrix above.
+
+### Composer refinement checks
+
+- [ ] Call subject/outcome, call notes and task subject show their required asterisks inline with label text; native required validation still works.
+- [ ] No top-right composer collapse toggle and no Reset button; Cancel closes each composer without an API mutation, restores quick-action focus and preserves draft when reopened.
+- [ ] Cancel disabled during save; after a failed save, Cancel remains available. The same behavior appears in the seeded preview and the real workspace.

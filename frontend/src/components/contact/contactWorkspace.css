@@ -49,7 +49,7 @@
 .cw-property dd.cw-muted { font-weight:500; color:#00255a; }
 .cw-property-group { border-top:1px solid #e1e5e9; }
 .cw-disclosure { padding:12px 24px; min-height:52px; width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:14px; font-weight:600; text-align:left; cursor:pointer; }
-.cw-disclosure[aria-expanded="true"] .cw-chevron,.cw-chevron-open { transform:rotate(180deg); }
+.cw-disclosure[aria-expanded="true"] .cw-chevron { transform:rotate(180deg); }
 .cw-expand { overflow:hidden; }
 .cw-secondary-properties { padding-top:8px; }
 .cw-quick-actions { display:flex; flex-wrap:wrap; gap:12px; padding:0 24px 12px; }
@@ -61,7 +61,8 @@
 .cw-form { display:grid; gap:16px; padding:16px 0 24px; border-top:1px solid #e1e5e9; }
 .cw-form-fields { min-width:0; border:0; padding:0; display:grid; gap:16px; }
 .cw-form label { display:grid; gap:8px; font-weight:500; font-size:14px; line-height:20px; min-width:0; }
-.cw-form label > span { display:inline; }
+.cw-form .cw-field-label { display:inline; }
+.cw-form .cw-required { color:#b42318; white-space:nowrap; }
 .cw-form input,.cw-form select,.cw-form textarea { font-size:16px; min-width:0; max-width:100%; min-height:44px; border-color:#aebbc8; border-radius:6px; box-shadow:none; }
 .cw-form textarea { resize:vertical; }
 .cw-date-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }

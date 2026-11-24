@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { ArrowLeft, MoreHorizontal, Phone, CheckCircle, ChevronDown, FileText, Plus, Copy, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, Phone, CheckCircle, FileText, Plus, Copy, Trash2, UserPlus } from "lucide-react";
 import toast from "react-hot-toast";
 import { api } from "../utils/api";
 import { readSessionValue } from "../utils/session.js";
@@ -166,6 +166,15 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
     setTab("overview"); setMode(next); setLastMode(next); setSaveError(""); setFeedback("");
     requestAnimationFrame(() => composer.current?.querySelector("input:not([disabled]),textarea:not([disabled]),select:not([disabled])")?.focus());
   }
+  function cancelComposer() {
+    if (saveLock.current || pending || !mode) return;
+    // Closing is not a destructive reset: keep per-mode drafts for reopening.
+    const previousMode = mode;
+    setMode(null);
+    setSaveError("");
+    setFeedback("");
+    quickActions.current?.querySelector(`[data-mode="${previousMode}"]`)?.focus({preventScroll:true});
+  }
   const closeWorkspace = () => {
     if (pending || deletePending) return;
     const dirty = call.subject || call.description || task.subject || task.description || task.date || task.priority !== "NORMAL" || task.time !== "12:00" || email.subject || email.body;
@@ -234,7 +243,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
       {tab==="overview" ? <div className="cw-grid">
         <div className="cw-activity">
           <section className="cw-panel cw-composer-panel" aria-labelledby="cw-composer-heading">
-            <div className="cw-panel-header"><h2 id="cw-composer-heading">Quick actions</h2>{mode && <button type="button" className="cw-icon" title="Collapse composer" aria-label="Collapse composer" aria-expanded="true" aria-controls={composerId} disabled={!!pending} onClick={()=>{setMode(null);setSaveError("");quickActions.current?.querySelector(`[data-mode="${mode}"]`)?.focus();}}><ChevronDown size={18} className="cw-chevron-open"/></button>}</div>
+            <div className="cw-panel-header"><h2 id="cw-composer-heading">Quick actions</h2></div>
             <div className="cw-quick-actions" ref={quickActions}>{actions.map(({id,label})=><button type="button" className={`cw-button ${!mode && id===actions[0]?.id ? "cw-primary" : ""}`} key={id} data-mode={id} aria-pressed={mode===id} aria-expanded={mode===id} aria-controls={composerId} onClick={()=>openComposer(id)} disabled={!!pending}>{label}</button>)}</div>
             {!mode && <p className="cw-muted cw-composer-hint">Record an interaction or plan a follow-up.</p>}
             <Expandable open={!!mode} id={composerId}><div ref={composer} className="cw-composer">
@@ -242,10 +251,10 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
                 <h3>{actions.find(a=>a.id===displayMode)?.label}</h3>
                 <fieldset disabled={!!pending} className="cw-form-fields">
                 {displayMode==="call" ? <>
-                  <label>Subject / outcome <span aria-hidden="true">*</span><input required value={call.subject} onChange={e=>setCall({...call,subject:e.target.value})} placeholder="Enter an outcome or call subject"/></label>
-                  <label>Call notes <span aria-hidden="true">*</span><textarea required rows={4} value={call.description} onChange={e=>setCall({...call,description:e.target.value})} placeholder="What was discussed?"/></label>
+                  <label><span className="cw-field-label">Subject / outcome <span className="cw-required" aria-hidden="true">*</span></span><input required value={call.subject} onChange={e=>setCall({...call,subject:e.target.value})} placeholder="Enter an outcome or call subject"/></label>
+                  <label><span className="cw-field-label">Call notes <span className="cw-required" aria-hidden="true">*</span></span><textarea required rows={4} value={call.description} onChange={e=>setCall({...call,description:e.target.value})} placeholder="What was discussed?"/></label>
                 </> : displayMode==="task" ? <>
-                  <label>Task subject <span aria-hidden="true">*</span><input required value={task.subject} onChange={e=>setTask({...task,subject:e.target.value})} placeholder="Enter a task name"/></label>
+                  <label><span className="cw-field-label">Task subject <span className="cw-required" aria-hidden="true">*</span></span><input required value={task.subject} onChange={e=>setTask({...task,subject:e.target.value})} placeholder="Enter a task name"/></label>
                   <label>Priority<select value={task.priority} onChange={e=>setTask({...task,priority:e.target.value})}><option value="LOW">Low</option><option value="NORMAL">Normal</option><option value="HIGH">High</option></select></label>
                   <div className="cw-date-row"><label>Due date<input type="date" value={task.date} onChange={e=>setTask({...task,date:e.target.value})}/></label><label>Due time<input type="time" value={task.time} onChange={e=>setTask({...task,time:e.target.value})} disabled={!task.date}/></label></div>
                   <label>Description<textarea rows={3} value={task.description} onChange={e=>setTask({...task,description:e.target.value})} placeholder="What needs to be done?"/></label>
@@ -257,7 +266,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
                 </>}
                 </fieldset>
                 {saveError && <p role="alert" className="cw-error">{saveError}</p>}
-                <div className="cw-form-footer"><span className="cw-muted">{mode==="email" ? "" : `Recorded by ${currentUserName}`}</span><div className="cw-actions"><button type="button" className="cw-button" disabled={!!pending} onClick={()=>{if(mode==="call")setCall(blankCall);else if(mode==="task")setTask(blankTask);else setEmail(blankEmail);setSaveError("");setFeedback("");}}>Reset</button>
+                <div className="cw-form-footer"><span className="cw-muted">{mode==="email" ? "" : `Recorded by ${currentUserName}`}</span><div className="cw-actions"><button type="button" className="cw-button" disabled={!!pending} onClick={cancelComposer}>Cancel</button>
                 <button type="submit" className="cw-button cw-primary" disabled={!!pending || (mode!=="email" && historyLoading) || (mode==="email" && !recipients.length)}>{pending ? "Saving…" : displayMode==="call" ? "Save call" : displayMode==="task" ? "Create task" : "Open email client"}</button></div></div>
               </form>}
             </div></Expandable>
