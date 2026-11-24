@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   present, humanize, contactName, safeWebLink, usableEmail,
-  emailLink, phoneLink, formatDate, taskDueDate, activityHistory,
+  emailLink, phoneLink, formatDate, taskDueDate, activityHistory, groupActivityByDate, activityTime,
 } from "../src/components/contact/contactWorkspaceUtils.js";
 
 test("missing properties are distinguished from zero values", () => {
@@ -47,4 +47,16 @@ test("combined activity uses real creation times, sorts newest first, and filter
   assert.deepEqual(activityHistory(calls,tasks,"call").map(x=>x.record.call_id),["c1","c2"]);
   assert.deepEqual(activityHistory(calls,tasks,"task").map(x=>x.record.task_id),["t1"]);
   assert.equal(calls.length,2);
+});
+
+test("timeline date grouping preserves sorted order and separates missing dates",()=>{
+  const local=(y,m,d,h)=>new Date(y,m,d,h).toISOString();
+  const items=[{date:local(2026,10,24,15),record:{id:1}},{date:local(2026,10,24,1),record:{id:2}},{date:local(2026,10,23,23),record:{id:3}},{date:null,record:{id:4}},{date:"invalid",record:{id:5}}];
+  const groups=groupActivityByDate(items);
+  assert.deepEqual(groups.map(g=>g.label),["24 November 2026","23 November 2026","Date unavailable"]);
+  assert.deepEqual(groups.map(g=>g.items.map(i=>i.record.id)),[[1,2],[3],[4,5]]);
+  assert.deepEqual(groupActivityByDate([]),[]);
+  assert.equal(activityTime(null),"Time unavailable");
+  assert.equal(activityTime("invalid"),"Time unavailable");
+  assert.equal(activityTime(items[0].date),new Date(items[0].date).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}));
 });

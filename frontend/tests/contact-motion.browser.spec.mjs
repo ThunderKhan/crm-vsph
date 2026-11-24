@@ -114,7 +114,7 @@ test("task completion is confirmed by API, persists across filters and preserves
   await page.goto(url);
   const row=page.locator(".cw-timeline-item").filter({has:page.getByRole("heading",{name:"Schedule product demonstration",exact:true})});
   const check=row.getByRole("checkbox",{name:"Complete task: Schedule product demonstration"});
-  await expect(row.getByText("Pending",{exact:true})).toHaveCSS("color","rgb(180, 35, 24)");
+  await expect(row.getByText("Pending",{exact:true})).toHaveCSS("color","rgb(209, 36, 47)");
   await expect(check).not.toBeChecked();
   await expect(page.getByRole("button",{name:"Log call",exact:true})).toHaveCount(0);
   await page.getByRole("button",{name:"Log a call",exact:true}).click();
@@ -127,8 +127,11 @@ test("task completion is confirmed by API, persists across filters and preserves
   await expect(check).not.toBeChecked();
   await check.click();
   await expect(check).toBeChecked();
-  await expect(row.getByText("Completed",{exact:true})).toHaveCSS("color","rgb(22, 101, 52)");
-  await expect(row.getByText(/Completed by Arjun Mehta/)).toBeVisible();
+  await expect(row.getByText("Completed",{exact:true})).toHaveCSS("color","rgb(26, 127, 55)");
+  const disclosure=row.getByRole("button",{name:"Expand details: Schedule product demonstration"});
+  await expect(disclosure).toHaveAttribute("aria-expanded","false");
+  await disclosure.click();
+  await expect(row.locator(".cw-completion-meta").filter({hasText:"Completed by"}).locator("dd")).toHaveText("Arjun Mehta");
   await expect(row).toHaveAttribute("data-completed","true");
   await page.getByRole("button",{name:"Calls",exact:true}).click();
   await page.getByRole("button",{name:"Tasks",exact:true}).click();
@@ -136,5 +139,32 @@ test("task completion is confirmed by API, persists across filters and preserves
   await check.click();
   await expect(check).not.toBeChecked();
   await expect(row.getByText("In progress",{exact:true})).toBeVisible();
-  await expect(row.getByText(/Completed by Arjun Mehta/)).toHaveCount(0);
+  await expect(row.locator(".cw-completion-meta")).toHaveCount(0);
+});
+
+test("timeline groups by date and reveals individual nodes without changing task status",async({page})=>{
+  await page.goto(url);
+  const history=page.getByRole("region",{name:"Activity history"});
+  await expect(history.locator(".cw-timeline-date")).toHaveText(["24 November 2026","23 November 2026"]);
+  const task=history.locator(".cw-timeline-item").filter({has:page.getByRole("heading",{name:"Schedule product demonstration",exact:true})});
+  const call=history.locator(".cw-timeline-item").filter({has:page.getByRole("heading",{name:"Technical requirements follow-up",exact:true})});
+  const taskToggle=task.getByRole("button",{name:"Expand details: Schedule product demonstration"});
+  const callToggle=call.getByRole("button",{name:"Expand details: Technical requirements follow-up"});
+  await expect(taskToggle).toHaveAttribute("aria-expanded","false");
+  await expect(task.getByText("Arrange a demonstration for the operations and IT teams.",{exact:true})).not.toBeVisible();
+  await taskToggle.focus();
+  await page.keyboard.press("Enter");
+  await expect(task.getByText("Arrange a demonstration for the operations and IT teams.",{exact:true})).toBeVisible();
+  await expect(task.locator(".cw-event-field dt")).toHaveText(["Assigned to","Created","Priority","Due date"]);
+  await expect(callToggle).toHaveAttribute("aria-expanded","false");
+  await callToggle.click();
+  await expect(call.locator(".cw-event-field dt")).toHaveText(["Recorded by","Created"]);
+  await expect(task.getByRole("checkbox")).not.toBeChecked();
+  await expect(task.getByRole("button",{name:"Collapse details: Schedule product demonstration"})).toHaveAttribute("aria-expanded","true");
+  await task.getByRole("button",{name:"Collapse details: Schedule product demonstration"}).click();
+  await expect(task.locator(".cw-event-expand")).toHaveAttribute("aria-hidden","true");
+  await expect(call.getByRole("button",{name:"Collapse details: Technical requirements follow-up"})).toHaveAttribute("aria-expanded","true");
+  await page.getByRole("button",{name:"Tasks",exact:true}).click();
+  await expect(history.locator(".cw-timeline-item")).toHaveCount(2);
+  await expect(history.locator(".cw-timeline-date")).toHaveCount(2);
 });

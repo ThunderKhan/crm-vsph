@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { ArrowLeft, MoreHorizontal, Phone, CheckCircle, FileText, Copy, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, Phone, CheckCircle, FileText, Copy, Trash2, UserPlus, ChevronDown } from "lucide-react";
 import toast from "react-hot-toast";
 import { api } from "../utils/api";
 import { readSessionValue } from "../utils/session.js";
@@ -9,7 +9,7 @@ import ContactProperties, { Expandable } from "./contact/ContactProperties";
 import { SlidingTabs, SaveGlyph, CopyGlyph, useCopyFeedback, Tooltip, ContactSkeleton } from "./contact/ContactMotion";
 import { useDialogExit } from "./contact/useDialogExit";
 import { activityKey, requiredActivityFields, taskStatusLabel, nextTaskCompletion, completionActor } from "./contact/contactMotionUtils.js";
-import { activityHistory, contactName, emailLink, usableEmail, formatDate, humanize, taskDueDate } from "./contact/contactWorkspaceUtils.js";
+import { activityHistory, groupActivityByDate, activityTime, contactName, emailLink, usableEmail, formatDate, humanize, taskDueDate } from "./contact/contactWorkspaceUtils.js";
 import "./contact/contactWorkspace.css";
 
 const errorMessage = (response, fallback) => response?.message || response?.error || fallback;
@@ -76,6 +76,10 @@ function DeleteDialog({ name, onConfirm, onClose, pending, error }) {
   </dialog>;
 }
 
+function EventField({ label, children, className="" }) {
+  return <div className={"cw-event-field "+className}><dt>{label}</dt><dd>{children}</dd></div>;
+}
+
 function TaskCompletionMeta({ record }) {
   const [audit,setAudit]=useState(null);
   const complete=record.task_status==="COMPLETED";
@@ -87,40 +91,84 @@ function TaskCompletionMeta({ record }) {
     api.get("/api/tasks/"+encodeURIComponent(record.task_id)).then(result=>{
       if(active && result?.success && result.data?.task_status==="COMPLETED" &&
         result.data.task_completed_at===record.task_completed_at) setAudit({key,actor:completionActor(result.data)});
-    }).catch(()=>{ /* No invented attribution when audit is unavailable. */ });
+    }).catch(()=>{ /* Never invent completion attribution. */ });
     return ()=>{active=false;};
   },[complete,hasAudit,key,record.task_id,record.task_completed_at]);
   if(!complete)return null;
   const actor=completionActor(record) || (audit?.key===key ? audit.actor : null);
   const date=formatDate(record.task_completed_at);
-  if(!actor && !date)return null;
-  return <div className="cw-event-meta cw-completion-meta">{actor ? "Completed by "+actor : "Completed"}{date && " · "+date}</div>;
+  return <>
+    <EventField label="Completed by" className="cw-completion-meta">{actor || "Not available"}</EventField>
+    <EventField label="Completed at" className="cw-completion-meta">{date || "Date unavailable"}</EventField>
+  </>;
 }
+
+function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle, expanded, onExpand }) {
+  const {kind,record,date}=item;
+  const call=kind==="call", Icon=call?Phone:CheckCircle;
+  const subject=(call?record.call_subject:record.task_subject) || (call?"Call":"Untitled task");
+  const description=call?record.call_description:record.task_description;
+  const key=activityKey(kind,record), detailsId=useId();
+  const done=!call && record.task_status==="COMPLETED";
+  const next=call ? null : nextTaskCompletion(record,taskAccess);
+  const updating=!call && !!taskWrites[record.task_id];
+  const taskError=!call && taskErrors[record.task_id];
+  // Mount secondary details on first expansion and retain them for the exit
+  // animation. Historical audit requests are deferred until first disclosure.
+  const [visited,setVisited]=useState(expanded);
+  function toggle(){if(!expanded)setVisited(true);onExpand(key);}
+  return <li className="cw-timeline-item" data-new={newActivity===key} data-completed={done}>
+    <span className="cw-event-icon"><Icon size={18} aria-hidden="true"/><span className="cw-sr">{call?"Call":"Task"}</span></span>
+    <div className="cw-event-content">
+      <div className="cw-event-top">
+        <div className="cw-event-summary">
+          <h3>{subject}</h3>
+          <div className="cw-event-summary-meta">
+            {!call && <span className="cw-task-status" data-status={record.task_status} role="status">{taskStatusLabel(record.task_status)}</span>}
+            <span className="cw-event-time">{activityTime(date)}</span>
+          </div>
+        </div>
+        <div className="cw-event-actions">
+          {!call && <button type="button" role="checkbox" className="cw-task-check" aria-checked={done} aria-disabled={!next||updating} aria-busy={updating} aria-label={`Complete task: ${subject || "Untitled task"}`} title={updating ? "Saving status…" : !next ? "Status cannot be changed here" : done ? "Reopen task" : "Mark complete"} onClick={()=>{if(next&&!updating)onTaskToggle(record);}}><span className="cw-task-check-box" aria-hidden="true">{updating ? <span className="cw-task-spinner"/> : <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path pathLength="1" d="m5 12 4 4L19 6"/></svg>}</span></button>}
+          <button type="button" className="cw-event-disclosure" aria-label={`${expanded?"Collapse":"Expand"} details: ${subject}`} aria-expanded={expanded} aria-controls={detailsId} onClick={toggle}><ChevronDown className="cw-chevron" size={18} aria-hidden="true"/></button>
+        </div>
+      </div>
+      <Expandable id={detailsId} open={expanded} className="cw-event-expand">
+        {(visited||expanded) && <div className="cw-event-details">
+          {description ? <p className="cw-event-notes">{description}</p> : <p className="cw-event-no-notes">No notes recorded.</p>}
+          <dl className="cw-event-fields">
+            <EventField label={call?"Recorded by":"Assigned to"}>{record.user?.user_name || "Unknown user"}</EventField>
+            <EventField label="Created">{formatDate(date) || "Date unavailable"}</EventField>
+            {!call && <>
+              <EventField label="Priority">{humanize(record.task_priority,"Normal")}</EventField>
+              <EventField label="Due date">{formatDate(record.task_due_date) || "Not set"}</EventField>
+              <TaskCompletionMeta record={record}/>
+            </>}
+          </dl>
+        </div>}
+      </Expandable>
+      {taskError && <p className="cw-field-error" role="alert">{taskError}</p>}
+    </div>
+  </li>;
+}
+
 function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTasks, onRetry, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle }) {
-  const items = activityHistory(calls, tasks, filter);
+  const items=activityHistory(calls,tasks,filter);
+  const groups=groupActivityByDate(items);
+  const [expandedKeys,setExpandedKeys]=useState(()=>new Set());
+  function toggle(key){setExpandedKeys(prev=>{const next=new Set(prev);if(next.has(key))next.delete(key);else next.add(key);return next;});}
   return <section className="cw-panel cw-history-panel" aria-labelledby="cw-history-heading">
     <div className="cw-panel-header"><h2 id="cw-history-heading">Activity history</h2><span className="cw-muted">Newest first</span></div>
     <SlidingTabs className="cw-history-tabs" label="Filter activity" options={[["all","All activity"],["call","Calls"],...(canViewTasks ? [["task","Tasks"]] : [])]} value={filter} onChange={setFilter}/>
     {error && <div className="cw-error cw-history-error" role="alert">{error} <button type="button" className="cw-link" onClick={onRetry}>Retry</button></div>}
-    {loading ? <ContactSkeleton history/> : items.length === 0 ? <div className="cw-empty cw-history-empty"><FileText size={44} strokeWidth={1.4} aria-hidden="true"/><h3>{error ? "Activity unavailable" : filter === "all" ? "Activity history appears here" : filter === "call" ? "No calls yet" : "No tasks yet"}</h3><p>{error ? "Retry to load the history." : filter === "all" ? "Calls and tasks in chronological order." : "Recorded interactions will appear here."}</p></div> :
-      <ol className="cw-timeline">{items.map(({kind,record,date}) => {
-        const call = kind === "call", Icon = call ? Phone : CheckCircle;
-        const subject = call ? record.call_subject : record.task_subject;
-        const description = call ? record.call_description : record.task_description;
-        const key = activityKey(kind,record);
-        const done=!call && record.task_status==="COMPLETED";
-        const next=call ? null : nextTaskCompletion(record,taskAccess);
-        const updating=!call && !!taskWrites[record.task_id];
-        const taskError=!call && taskErrors[record.task_id];
-        return <li key={key} className="cw-timeline-item" data-new={newActivity===key} data-completed={done}>
-          <span className="cw-event-icon"><Icon size={18} aria-hidden="true"/><span className="cw-sr">{call ? "Call" : "Task"}</span></span>
-          <div className="cw-event-content"><div className="cw-event-top"><h3>{subject || (call ? "Call" : "Task")}</h3>{!call && <button type="button" role="checkbox" className="cw-task-check" aria-checked={done} aria-disabled={!next||updating} aria-busy={updating} aria-label={`Complete task: ${subject || "Untitled task"}`} title={updating ? "Saving status…" : !next ? "Status cannot be changed here" : done ? "Reopen task" : "Mark complete"} onClick={()=>{if(next&&!updating)onTaskToggle(record);}}><span className="cw-task-check-box" aria-hidden="true">{updating ? <span className="cw-task-spinner"/> : <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path pathLength="1" d="m5 12 4 4L19 6"/></svg>}</span></button>}</div>
-            {description && <p className="cw-event-notes">{description}</p>}
-            <div className="cw-event-meta">{record.user?.user_name || "Unknown user"} · {formatDate(date) || "Date unavailable"}</div>
-            {!call && <><div className="cw-event-meta">{humanize(record.task_priority,"Normal")} priority · <span className="cw-task-status" data-status={record.task_status} role="status">{taskStatusLabel(record.task_status)}</span>{record.task_due_date && " · Due "+(formatDate(record.task_due_date) || "date unavailable")}</div><TaskCompletionMeta record={record}/>{taskError && <p className="cw-field-error" role="alert">{taskError}</p>}</>}
-          </div>
-        </li>;
-      })}</ol>}
+    {loading ? <ContactSkeleton history/> : items.length===0 ? <div className="cw-empty cw-history-empty"><FileText size={44} strokeWidth={1.4} aria-hidden="true"/><h3>{error ? "Activity unavailable" : filter==="all" ? "Activity history appears here" : filter==="call" ? "No calls yet" : "No tasks yet"}</h3><p>{error ? "Retry to load the history." : filter==="all" ? "Calls and tasks in chronological order." : "Recorded interactions will appear here."}</p></div> :
+      <div className="cw-timeline">{groups.map(group=><section className="cw-timeline-group" key={group.key}>
+        <h3 className="cw-timeline-date">{group.label}</h3>
+        <ol className="cw-timeline-list">{group.items.map(item=>{
+          const key=activityKey(item.kind,item.record);
+          return <ActivityNode key={key} item={item} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={onTaskToggle} expanded={expandedKeys.has(key)} onExpand={toggle}/>;
+        })}</ol>
+      </section>)}</div>}
   </section>;
 }
 

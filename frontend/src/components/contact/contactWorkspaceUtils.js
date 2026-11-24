@@ -45,3 +45,22 @@ export function activityHistory(calls, tasks, filter = "all") {
   return items.filter((item) => filter === "all" || item.kind === filter)
     .sort((a, b) => { const x = timestamp(a.date), y = timestamp(b.date); return x === y ? 0 : y - x; });
 }
+
+// Group by the same local calendar used by the displayed timestamps, not UTC.
+// Missing dates stay unknown; the input is already ordered newest-first.
+export function groupActivityByDate(items) {
+  const groups=new Map();
+  for(const item of items) {
+    const date=present(item.date) ? new Date(item.date) : null;
+    const valid=date && Number.isFinite(date.getTime());
+    const key=valid ? [date.getFullYear(),date.getMonth()+1,date.getDate()].map(n=>String(n).padStart(2,"0")).join("-") : "unknown";
+    if(!groups.has(key)) groups.set(key,{key,label:valid ? date.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}) : "Date unavailable",items:[]});
+    groups.get(key).items.push(item);
+  }
+  return Array.from(groups.values());
+}
+export function activityTime(value) {
+  if(!present(value))return "Time unavailable";
+  const date=new Date(value);
+  return Number.isFinite(date.getTime()) ? date.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}) : "Time unavailable";
+}

@@ -11,6 +11,7 @@ export default defineConfig({
   use: {
     baseURL: origin,
     browserName: "chromium",
+    timezoneId: "Asia/Kolkata",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
