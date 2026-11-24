@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, MoreHorizontal, Phone, CheckCircle, FileText, Copy, Trash2, UserPlus, ChevronDown, Search, X, StickyNote, Mail, Calendar, MessageSquare } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Phone, CheckCircle, FileText, Copy, Trash2, UserPlus, ChevronDown, Search, X, StickyNote, Mail, Calendar, MessageSquare } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../utils/api";
@@ -242,7 +242,7 @@ function Timeline({ calls, tasks, entries, loading, error, filter, setFilter, ca
   </>;
 }
 
-export default function ConDetailView({ isOpen, onClose, contactId, onChanged }) {
+export default function ConDetailView({ isOpen, onClose, contactId, onChanged, neighbors, onNavigate }) {
   // The parent keys this component by contact ID, so drafts and requests are isolated per record.
   const [now,setNow]=useState(Date.now);
   useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),60000);return ()=>clearInterval(timer);},[]);
@@ -255,7 +255,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const [revision,setRevision] = useState(0), [historyRevision,setHistoryRevision] = useState(0);
   const [searchParams,setSearchParams]=useSearchParams();
   const canViewOpportunities=hasModule("OPPORTUNITIES")&&canDoAction("OPPORTUNITIES","VIEW");
-  const canCreateOpportunity=canViewOpportunities&&canDoAction("OPPORTUNITIES","CREATE");
+  const canCreateOpportunity=canViewOpportunities&&canDoAction("OPPORTUNITIES","CREATE")&&currentOrgRole()!=="PLATFORM_SUPERADMIN";
   const canEditOpportunity=canViewOpportunities&&canDoAction("OPPORTUNITIES","EDIT");
   const tab=canViewOpportunities&&searchParams.get("contact_view")==="opportunities"?"opportunities":"activity";
   const activityView=useActivityView(), workspaceContentId=useId();
@@ -357,12 +357,13 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
     if(mode==="email")setFeedback("");
     setMode(null);setFieldErrors({});setSavedMode(null);setSaveError("");
   }
-  const closeWorkspace = () => {
-    if (pending || deletePending || taskLocks.current.size) return;
-    const dirty = call.subject || call.description || task.subject || task.description || task.date || task.assignee || task.priority !== "NORMAL" || task.time !== "12:00" || email.subject || email.body || call.followupSubject || Object.values(entryDrafts).some(draft=>draft.subject||draft.description);
-    if (dirty && !window.confirm("Discard unsaved activity drafts?")) return;
-    onClose();
-  };
+  function canLeaveWorkspace() {
+    if (pending || deletePending || taskLocks.current.size || mode || taskEditing || opportunityEditing || relationshipEditing || edit || deleting) return false;
+    const dirty = call.subject || call.description || task.subject || task.description || task.date || task.assignee || task.priority !== "NORMAL" || task.time !== "12:00" || email.subject || email.body || call.outcome || call.followup || call.followupSubject || Object.values(entryDrafts).some(draft=>draft.subject||draft.description||draft.occurred);
+    return !dirty || window.confirm("Discard unsaved activity drafts?");
+  }
+  function closeWorkspace(){if(canLeaveWorkspace())onClose();}
+  function navigateContact(id){if(id&&canLeaveWorkspace())onNavigate?.(id);}
   function retryHistory() { if(taskLocks.current.size)return; setHistoryLoading(true); setHistoryError(""); setHistoryRevision(v=>v+1); }
   async function saveTaskPatch(record,patch) {
     const id=record.task_id;
@@ -421,18 +422,18 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
     setFieldErrors(errors);
     if(Object.keys(errors).length){composer.current?.querySelector(`[name="${Object.keys(errors)[0]}"]`)?.focus();return;}
     if (isCall&&call.followup&&canTask&&(!call.followupSubject.trim()||!call.followupDate||!(call.assignee||currentUserId))){setSaveError("Enter a follow-up subject, due date and assignee.");return;}
-    if ((!isCall||call.followup)&&taskAccess.role==="ORG_ADMIN"&&!(isCall?call.assignee:task.assignee)){setSaveError("Choose an assignee.");return;}
+    if ((!isCall||call.followup)&&["ORG_ADMIN","PLATFORM_SUPERADMIN"].includes(taskAccess.role)&&!(isCall?call.assignee:task.assignee)){setSaveError("Choose an assignee.");return;}
     saveLock.current = true; setPending(mode);
     try {
       const payload = isCall ? {call_user_fk:currentUserId,call_contact_fk:contactId,call_subject:call.subject.trim(),call_description:call.description.trim(),call_outcome:call.outcome||null,...(call.followup&&canTask?{followup:{subject:call.followupSubject,due:taskDueDate(call.followupDate,call.followupTime),assignee:call.assignee||currentUserId}}:{})} :
         {task_user_fk:task.assignee||currentUserId,task_contact_fk:contactId,task_subject:task.subject.trim(),task_description:task.description,task_priority:task.priority,task_due_date:taskDueDate(task.date,task.time)};
-      const result = await api.post(isCall ? "/api/calls" : "/api/tasks",payload);
+      const result = await api.post(isCall ? "/api/calls" : "/api/tasks", {...payload,...(taskAccess.role==="PLATFORM_SUPERADMIN"?{tenant_fk:contact.tenant_fk}:{})});
       const record = result?.data || result;
       if (!record || result.success === false || result.error || !(isCall ? record.call_id : record.task_id)) throw new Error(errorMessage(result,"Could not save activity."));
       const {followup_task:followupTask,...savedRecord}=record;
       const saved = {...savedRecord,user:record.user || ((isCall||!task.assignee||task.assignee===currentUserId)?{user_name:currentUserName}:undefined)};
       if (isCall) { setCalls(prev=>[saved,...prev.filter(x=>x.call_id!==saved.call_id)]); setCall(blankCall); if(followupTask&&canViewTasks)setTasks(prev=>[followupTask,...prev.filter(x=>x.task_id!==followupTask.task_id)]); }
-      else { if (canViewTasks) setTasks(prev=>[saved,...prev.filter(x=>x.task_id!==saved.task_id)]); setTask(blankTask); if(task.assignee&&task.assignee!==currentUserId)setHistoryRevision(v=>v+1); }
+      else { if (canViewTasks) setTasks(prev=>[saved,...prev.filter(x=>x.task_id!==saved.task_id)]); setTask(blankTask); }
       savedActivity.current=activityKey(isCall ? "call" : "task",saved);
       setSavedMode(mode);setFeedback(isCall ? (followupTask?"Call and follow-up saved.":"Call saved.") : "Task created.");setRevision(v=>v+1);
     } catch(error) { setSaveError(error.message || "Could not save activity. Try again."); }
@@ -448,13 +449,13 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
     } catch(error) { setDeleteError(error.message || "Could not delete contact."); }
     finally { deleteLock.current=false; setDeletePending(false); }
   }
-  const summary=useMemo(()=>contactActivitySummary(calls,tasks,now),[calls,tasks,now]);
+  const summary=useMemo(()=>contactActivitySummary(calls,tasks,now,entries),[calls,tasks,now,entries]);
   if (!isOpen) return null;
   const name=contactName(contact), initials=[contact?.contact_firstname,contact?.contact_lastname].filter(Boolean).map(v=>v[0].toUpperCase()).join("") || "C";
   const recipients=[...new Set([contact?.contact_professional_email,contact?.contact_personal_email].filter(usableEmail))];
   const actions=[...(canCall ? [{id:"call",label:"Log a call"}] : []),...(canTask ? [{id:"task",label:"Create task"}] : []),{id:"email",label:"Compose email"},...(canCall?[{id:"note",label:"Add note"},{id:"email-log",label:"Log email"},{id:"meeting",label:"Log meeting"},{id:"linkedin",label:"Log LinkedIn interaction"}]:[])];
   return <div className="cw-workspace">
-    <nav className="cw-breadcrumb" aria-label="Breadcrumb"><button type="button" className="cw-back" onClick={closeWorkspace} disabled={!!pending||Object.values(taskWrites).some(Boolean)}><ArrowLeft size={16}/> Contacts</button></nav>
+    <nav className="cw-breadcrumb" aria-label="Breadcrumb"><button type="button" className="cw-back" onClick={closeWorkspace} disabled={!!pending||Object.values(taskWrites).some(Boolean)}><ArrowLeft size={16}/> Contacts</button>{neighbors&&<div className="cw-record-navigation"><button type="button" className="cw-icon" aria-label="Previous contact" disabled={!neighbors.previous||!!pending||deletePending||Object.values(taskWrites).some(Boolean)} onClick={()=>navigateContact(neighbors.previous)}><ChevronLeft size={18} aria-hidden="true"/></button><span className="cw-muted" aria-label="Position on current list page">{neighbors.position} / {neighbors.total}</span><button type="button" className="cw-icon" aria-label="Next contact" disabled={!neighbors.next||!!pending||deletePending||Object.values(taskWrites).some(Boolean)} onClick={()=>navigateContact(neighbors.next)}><ChevronRight size={18} aria-hidden="true"/></button></div>}</nav>
     {loading ? <ContactSkeleton view={tab}/> : !contact ? <div className="cw-panel cw-empty"><h2>Contact unavailable</h2><p role="alert">{loadError || "Contact not found."}</p><button type="button" className="cw-button" onClick={()=>{setLoading(true);setRevision(v=>v+1);}}>Retry</button></div> : <>
       {loadError && <p className="cw-error" role="alert">{loadError}</p>}
       <div className="cw-grid cw-record-grid">
@@ -485,10 +486,10 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
                 {mode==="call" ? <>
                   <label><span className="cw-field-label">Subject / outcome <span className="cw-required" aria-hidden="true">*</span></span><input required name="subject" value={call.subject} aria-invalid={!!fieldErrors.subject} aria-describedby={fieldErrors.subject ? composerId+"-subject-error" : undefined} onChange={e=>{setCall({...call,subject:e.target.value});if(e.target.value.trim())setFieldErrors(prev=>({...prev,subject:undefined}));}} placeholder="Enter an outcome or call subject"/>{fieldErrors.subject && <span className="cw-field-error" id={composerId+"-subject-error"} role="alert">{fieldErrors.subject}</span>}</label>
                   <label><span className="cw-field-label">Call notes <span className="cw-required" aria-hidden="true">*</span></span><textarea required rows={4} name="description" value={call.description} aria-invalid={!!fieldErrors.description} aria-describedby={fieldErrors.description ? composerId+"-description-error" : undefined} onChange={e=>{setCall({...call,description:e.target.value});if(e.target.value.trim())setFieldErrors(prev=>({...prev,description:undefined}));}} placeholder="What was discussed?"/>{fieldErrors.description && <span className="cw-field-error" id={composerId+"-description-error"} role="alert">{fieldErrors.description}</span>}</label>
-                  <CallOutcomeFields draft={call} setDraft={setCall} canTask={canTask} role={taskAccess.role} userId={currentUserId} tenantId={contact.tenant_fk}/>
+                  <CallOutcomeFields draft={call} setDraft={setCall} canTask={canTask} role={taskAccess.role} tenantId={contact.tenant_fk}/>
                 </> : mode==="task" ? <>
                   <label><span className="cw-field-label">Task subject <span className="cw-required" aria-hidden="true">*</span></span><input required name="subject" value={task.subject} aria-invalid={!!fieldErrors.subject} aria-describedby={fieldErrors.subject ? composerId+"-subject-error" : undefined} onChange={e=>{setTask({...task,subject:e.target.value});if(e.target.value.trim())setFieldErrors(prev=>({...prev,subject:undefined}));}} placeholder="Enter a task name"/>{fieldErrors.subject && <span className="cw-field-error" id={composerId+"-subject-error"} role="alert">{fieldErrors.subject}</span>}</label>
-                  <TaskAssigneeField draft={task} setDraft={setTask} role={taskAccess.role} userId={currentUserId} tenantId={contact.tenant_fk}/>
+                  <TaskAssigneeField draft={task} setDraft={setTask} role={taskAccess.role} tenantId={contact.tenant_fk}/>
                   <label>Priority<select value={task.priority} onChange={e=>setTask({...task,priority:e.target.value})}><option value="LOW">Low</option><option value="NORMAL">Normal</option><option value="HIGH">High</option></select></label>
                   <div className="cw-date-row"><label>Due date<input type="date" value={task.date} onChange={e=>setTask({...task,date:e.target.value})}/></label><label>Due time<input type="time" value={task.time} onChange={e=>setTask({...task,time:e.target.value})} disabled={!task.date}/></label></div>
                   <label>Description<textarea rows={3} value={task.description} onChange={e=>setTask({...task,description:e.target.value})} placeholder="What needs to be done?"/></label>

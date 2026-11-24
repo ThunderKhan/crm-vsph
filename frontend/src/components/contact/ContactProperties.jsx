@@ -63,6 +63,7 @@ function ContactProperties({ contact: c, summary, historyLoading, historyError, 
   const address = (data, prefix) => fields([["Street", data[prefix+"_street"]], ["City", data[prefix+"_city"]], ["State / province", data[prefix+"_state"]], ["Postal code", data[prefix+"_zip"]], ["Country", data[prefix+"_country"]], ["Phone", data[prefix+"_phone"], {href:phoneLink(data[prefix+"_phone"])}]]);
   return <aside className="cw-panel cw-properties" aria-labelledby="contact-properties-title">
     <h2 id="contact-properties-title" className="cw-panel-heading">Contact details</h2>
+    {c.contact_call_status==="DNC"&&<p className="cw-contact-caution" role="status">Do not call — check the contact’s communication preferences before outreach.</p>}
     <dl className="cw-property-list cw-summary-properties">
       {fields([
         ["Email", email, {href: emailLink(email), copy: true, singleLine: true}],
@@ -73,7 +74,7 @@ function ContactProperties({ contact: c, summary, historyLoading, historyError, 
         ["Record status",humanize(c.contact_status)],
         ["Relationship",humanize(c.contact_relationship_stage,"Not set")],
         ["Call status",humanize(c.contact_call_status)],
-        ["Last logged call",summary?.lastCall?formatDate(summary.lastCall.call_created_at):null,{fallback:historyLoading?"Loading…":historyError?"Unavailable":"No calls logged"}],
+        ["Last logged interaction",summary?.lastInteraction?`${summary.lastInteraction.kind==="linkedin"?"LinkedIn":humanize(summary.lastInteraction.kind)} · ${formatDate(summary.lastInteraction.date)}`:null,{fallback:historyLoading?"Loading…":historyError?"Unavailable":"No interactions logged"}],
         ...(canViewTasks?[["Next scheduled task",summary?.nextTask?`${summary.nextTask.task_subject || "Untitled task"} · ${formatDate(summary.nextTask.task_due_date)}`:null,{fallback:historyLoading?"Loading…":historyError?"Unavailable":"No scheduled task"}]]:[]),
         ["Contact owner", c.contact_owner?.user_name, {fallback:"Not assigned"}],
         ["Campaign", c.contact_campaign?.campaign_name, {fallback:"Not assigned"}],

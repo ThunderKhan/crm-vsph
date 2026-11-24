@@ -60,7 +60,7 @@ const long = {
   contact_designation: "Executive Vice President of International Operations and Strategic Partnerships",
   contact_professional_email: "alexandria.montgomery-richardson.international.operations@meridian.example.com",
   contact_profile_link: "https://example.com/people/alexandria-montgomery-richardson/international-operations-and-strategic-partnerships",
-  contact_call_status: "PITCH_DONE", opportunities: [{ opportunity_id: "preview-opportunity-3", opportunity_name: "Multi-region Operational Intelligence and Customer Relationship Management Modernization", opportunity_stage: "PROPOSAL" }],
+  contact_call_status: "PITCH_DONE", opportunities: [{ opportunity_id: "preview-opportunity-3", opportunity_name: "Multi-region Operational Intelligence and Customer Relationship Management Modernization", opportunity_stage: "CONTRACT_OUT" }],
 };
 const seedCalls = [
   { call_id: "preview-call-1", call_contact_fk: full.contact_id, call_subject: "Initial discovery call", call_description: "Discussed operational challenges, CRM requirements and integration with hospitality management systems. The client requested a technical proposal.", call_created_at: "2026-11-23T05:15:00.000Z", user: PREVIEW_USER },
@@ -193,7 +193,9 @@ export function createContactPreviewStore({ now = () => new Date().toISOString()
     }
     if (method==="POST" && path==="/api/tasks") {
       if (!contactById(payload.task_contact_fk)||!String(payload.task_subject||"").trim()||!["LOW","NORMAL","HIGH"].includes(payload.task_priority)) return fail("Contact, subject and valid priority are required.");
-      const record={...payload,task_id:id("task"),task_user_fk:PREVIEW_USER.user_id,task_status:"TODO",task_progress:0,task_completed_at:null,task_updates:[],task_created_at:now(),user:PREVIEW_USER}; tasks.push(record); return {success:true,message:"Task created",...record};
+      const assignee=payload.task_user_fk?previewUsers.find(user=>user.user_id===payload.task_user_fk):PREVIEW_USER;
+      if(!assignee)return fail("Assignee not found.");
+      const record={...payload,task_id:id("task"),task_user_fk:assignee.user_id,task_status:"TODO",task_progress:0,task_completed_at:null,task_updates:[],task_created_at:now(),user:assignee}; tasks.push(record); return {success:true,message:"Task created",...record};
     }
     if ((method==="PATCH" || method==="PUT") && taskRoute) {
       if(!task)return fail("Task not found");

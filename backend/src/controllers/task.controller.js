@@ -120,6 +120,7 @@ export const createTask = async (req, res) => {
         task_due_date: task_due_date ? new Date(task_due_date) : null,
         task_completed_at: task_status === "COMPLETED" ? new Date() : null,
       },
+      include:{user:{select:{user_id:true,user_name:true,user_role:true}},task_assigned_by:{select:{user_id:true,user_name:true}}},
     });
 
     res.status(201).json({ success: true, message: "Task created", ...newTask });

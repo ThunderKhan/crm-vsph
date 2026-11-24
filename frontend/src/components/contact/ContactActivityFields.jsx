@@ -5,7 +5,7 @@ import { humanize } from "./contactWorkspaceUtils.js";
 
 const outcomes=["CONNECTED","NOT_CONNECTED","RINGING","NOT_AVAILABLE","PITCH_DONE","NOT_INTERESTED","NOT_RELEVANT","LEFT_ORGANIZATION","WRONG_NUMBER","DNC"];
 
-export function TaskAssigneeField({draft,setDraft,role,userId,tenantId}) {
+export function TaskAssigneeField({draft,setDraft,role,tenantId}) {
   const [users,setUsers]=useState([]);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(true);
@@ -21,12 +21,12 @@ export function TaskAssigneeField({draft,setDraft,role,userId,tenantId}) {
   },[employee,role,tenantId]);
   if(employee)return <p className="cw-muted">Assigned to you</p>;
   return <label>Assignee<select value={draft.assignee||""} onChange={event=>setDraft(prev=>({...prev,assignee:event.target.value}))} disabled={loading}>
-    <option value="">{role==="ORG_ADMIN"?"Choose an assignee":"Assign to me"}</option>
+    <option value="">{["ORG_ADMIN","PLATFORM_SUPERADMIN"].includes(role)?"Choose an assignee":"Assign to me"}</option>
     {users.map(user=><option key={user.user_id} value={user.user_id}>{user.user_name}</option>)}
   </select>{error&&<span className="cw-field-error" role="alert">{error}</span>}</label>;
 }
 
-export function CallOutcomeFields({draft,setDraft,canTask,role,userId,tenantId}) {
+export function CallOutcomeFields({draft,setDraft,canTask,role,tenantId}) {
   const set=(key,value)=>setDraft(prev=>({...prev,[key]:value}));
   return <>
     <label>Call outcome<select value={draft.outcome} onChange={e=>set("outcome",e.target.value)}><option value="">Not recorded</option>{outcomes.map(outcome=><option key={outcome} value={outcome}>{humanize(outcome)}</option>)}</select></label>
@@ -34,7 +34,7 @@ export function CallOutcomeFields({draft,setDraft,canTask,role,userId,tenantId})
       {draft.followup&&<div className="cw-form-fields">
         <label>Follow-up subject<input required value={draft.followupSubject} maxLength={191} onChange={e=>set("followupSubject",e.target.value)}/></label>
         <div className="cw-date-row"><label>Follow-up date<input type="date" required value={draft.followupDate} onChange={e=>set("followupDate",e.target.value)}/></label><label>Follow-up time<input type="time" value={draft.followupTime} onChange={e=>set("followupTime",e.target.value)}/></label></div>
-        <TaskAssigneeField draft={draft} setDraft={setDraft} role={role} userId={userId} tenantId={tenantId}/>
+        <TaskAssigneeField draft={draft} setDraft={setDraft} role={role} tenantId={tenantId}/>
       </div>}
     </>}
   </>;

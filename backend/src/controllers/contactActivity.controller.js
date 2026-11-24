@@ -73,6 +73,10 @@ export async function saveLinkedOpportunity(req,res) {
     }
     const owner=await prisma.user.findFirst({where:{user_id:req.user.id,tenant_fk:contact.tenant_fk,user_deleted_at:null,user_status:true},select:{user_id:true}});
     if(!owner)return res.status(403).json({success:false,message:"An active user in the contact organization must own the opportunity."});
+    if(contact.contact_account_fk){
+      const account=await prisma.account.findFirst({where:{account_id:contact.contact_account_fk,tenant_fk:contact.tenant_fk},select:{account_id:true}});
+      if(!account)return res.status(400).json({success:false,message:"The contact account does not belong to this organization."});
+    }
     const data=await prisma.opportunity.create({data:{...validation.data,...where,opportunity_account_fk:contact.contact_account_fk,opportunity_owner_fk:owner.user_id},include:opportunityInclude});
     res.status(201).json({success:true,data});
   }catch(error){

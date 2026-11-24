@@ -132,7 +132,11 @@ const Contacts = () => {
     );
   };
 
-  if (viewContactId) return <ConDetailView key={viewContactId} isOpen onClose={() => setViewContactId(null)} contactId={viewContactId} onChanged={fetchContacts} />;
+  if (viewContactId) {
+    const index=contactsData.findIndex(contact=>contact.contact_id===viewContactId);
+    const neighbors=!loading&&index>=0?{previous:contactsData[index-1]?.contact_id,next:contactsData[index+1]?.contact_id,position:index+1,total:contactsData.length}:null;
+    return <ConDetailView key={viewContactId} isOpen onClose={() => setViewContactId(null)} contactId={viewContactId} onChanged={fetchContacts} neighbors={neighbors} onNavigate={setViewContactId}/>;
+  }
 
   return (
     <div className="flex flex-col h-full bg-page-bg animate-fade-in relative overflow-hidden">

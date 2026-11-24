@@ -141,25 +141,31 @@ export function splitActivity(items, now) {
     if (item.kind === "task" && item.record.task_status !== "COMPLETED") open.push(item);
     else past.push(item);
   }
-  const dueTime = item => taskDeadline(item.record, now) === "unscheduled"
-    ? Infinity : new Date(item.record.task_due_date).getTime();
-  open.sort((a,b) => {
-    const x = dueTime(a), y = dueTime(b);
-    return x === y ? 0 : x - y;
+  const ranked = open.map(item => {
+    const due=present(item.record.task_due_date)?new Date(item.record.task_due_date).getTime():NaN;
+    return {item,due:Number.isFinite(due)?due:Infinity};
   });
-  return {open, past};
+  ranked.sort((a,b)=>a.due===b.due?0:a.due-b.due);
+  return {open:ranked.map(entry=>entry.item),past};
 }
 
-export function contactActivitySummary(calls, tasks, now) {
-  let lastCall = null, nextTask = null;
+export function contactActivitySummary(calls, tasks, now, entries = []) {
+  let lastCall = null, nextTask = null, lastInteraction = null;
   for (const call of calls) {
     const time = present(call.call_created_at) ? new Date(call.call_created_at).getTime() : NaN;
     if (Number.isFinite(time) && (!lastCall || time > new Date(lastCall.call_created_at).getTime())) lastCall = call;
+  }
+  if(lastCall)lastInteraction={kind:"call",date:lastCall.call_created_at};
+  for(const entry of entries){
+    if(entry.entry_kind==="NOTE")continue;
+    const date=entry.entry_occurred_at;
+    const time=present(date)?new Date(date).getTime():NaN;
+    if(Number.isFinite(time)&&(!lastInteraction||time>new Date(lastInteraction.date).getTime()))lastInteraction={kind:entry.entry_kind.toLowerCase(),date};
   }
   for (const task of tasks) {
     const deadline = taskDeadline(task, now);
     if (deadline === "completed" || deadline === "unscheduled") continue;
     if (!nextTask || new Date(task.task_due_date) < new Date(nextTask.task_due_date)) nextTask = task;
   }
-  return { lastCall, nextTask };
+  return { lastCall, nextTask, lastInteraction };
 }
