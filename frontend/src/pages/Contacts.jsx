@@ -28,16 +28,19 @@ const Contacts = () => {
   const [limit] = useState(20);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [contactToEdit, setContactToEdit] = useState(null);
-  const [viewContactId, setViewContactId] = useState(null);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const viewContactId = searchParams.get("contact_id");
+  const setViewContactId = (id) => setSearchParams((previous) => {
+    const next = new URLSearchParams(previous);
+    if (id) next.set("contact_id", id); else next.delete("contact_id");
+    return next;
+  }, { replace: !id });
   const canCreate = canDoAction("CONTACTS", "CREATE");
   const canEdit = canDoAction("CONTACTS", "EDIT");
   const canDelete = canDoAction("CONTACTS", "DELETE");
   const navigate = useNavigate();
 
   useEffect(() => {
-    const contactId = searchParams.get("contact_id");
-    if (contactId) setViewContactId(contactId);
     const t = setTimeout(() => fetchContacts(), 300);
     return () => clearTimeout(t);
   }, [searchTerm, currentPage]);
@@ -127,6 +130,8 @@ const Contacts = () => {
       </span>
     );
   };
+
+  if (viewContactId) return <ConDetailView key={viewContactId} isOpen onClose={() => setViewContactId(null)} contactId={viewContactId} onChanged={fetchContacts} />;
 
   return (
     <div className="flex flex-col h-full bg-page-bg animate-fade-in relative overflow-hidden">
@@ -355,13 +360,6 @@ const Contacts = () => {
         onSuccess={fetchContacts}
         contactToEdit={contactToEdit}
       />
-      {viewContactId && (
-        <ConDetailView
-          isOpen={!!viewContactId}
-          onClose={() => setViewContactId(null)}
-          contactId={viewContactId}
-        />
-      )}
     </div>
   );
 };
