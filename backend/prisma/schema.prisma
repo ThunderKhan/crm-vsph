@@ -32,6 +32,7 @@ model tenant {
   tenant_industries    industry[]                     @relation("tenant_industries")
   tenant_entitlements  organization_app_entitlement[]
   tenant_invitations   invitation[]
+  tenant_email_templates email_template[] @relation("tenant_email_templates")
 
   @@index([tenant_status])
   @@index([tenant_code])
@@ -226,6 +227,23 @@ model contact {
   @@index([contact_account_fk])
   @@index([tenant_fk])
   @@map("contacts")
+}
+
+model email_template {
+  email_template_id   String   @id @default(uuid())
+  tenant_fk           String
+  tenant              tenant   @relation("tenant_email_templates", fields: [tenant_fk], references: [tenant_id])
+
+  name                String
+  subject             String   @db.Text
+  body_html           String   @db.Text
+  body_text           String?  @db.Text
+  is_default          Boolean  @default(false)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
+
+  @@index([tenant_fk])
+  @@map("email_templates")
 }
 
 model opportunity {

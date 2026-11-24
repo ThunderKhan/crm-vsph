@@ -15,6 +15,7 @@ import integrationRoutes from "./routes/integration.routes.js";
 import invitationRoutes from "./routes/invitation.routes.js";
 import organizationRoutes from "./routes/organization.routes.js";
 import emailRoutes from "./routes/email.routes.js";
+import emailTemplateRoutes from "./routes/email-template.routes.js";
 import activityRoutes from "./routes/activity.routes.js";
 import { authMiddleware, requireModule } from "./middleware/auth.middleware.js";
 import { assertSessionConfigured } from "./lib/session.js";
@@ -81,6 +82,7 @@ app.use("/api/campaigns", campaignRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/activity", activityRoutes);
 app.use("/api/emails", emailRoutes);
+app.use("/api/email-templates", authMiddleware, requireModule("CONTACTS"), emailTemplateRoutes);
 
 app.get("/", (req, res) => {
   res.send("CRM API Running");

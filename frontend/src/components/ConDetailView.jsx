@@ -56,6 +56,8 @@ const ConDetailView = ({ isOpen, onClose, contactId }) => {
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailTemplates, setEmailTemplates] = useState([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
 
   useEffect(() => {
     const userId = localStorage.getItem("vsph_user_id");
@@ -64,6 +66,19 @@ const ConDetailView = ({ isOpen, onClose, contactId }) => {
       setCurrentUser({ user_id: userId, id: userId, name: userName, user_name: userName });
     }
   }, []);
+
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
+
+  const fetchTemplates = async () => {
+    try {
+      const res = await api.get("/api/email-templates");
+      if (res.success) setEmailTemplates(res.data || []);
+    } catch (err) {
+      console.error("Failed to load email templates:", err);
+    }
+  };
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -212,26 +227,87 @@ const ConDetailView = ({ isOpen, onClose, contactId }) => {
     }
   };
 
+  const handleTemplateChange = (templateId) => {
+    setSelectedTemplateId(templateId);
+    const template = emailTemplates.find((t) => t.email_template_id === templateId);
+    if (!template) {
+      setEmailSubject("");
+      setEmailBody("");
+      return;
+    }
+    const contact = contactData || {};
+    const user = currentUser || {};
+    const vars = {
+      contact_firstname: contact.contact_firstname || "",
+      contact_lastname: contact.contact_lastname || "",
+      contact_name: [
+        contact.contact_salutation,
+        contact.contact_firstname,
+        contact.contact_lastname,
+        contact.contact_suffix,
+      ]
+        .filter(Boolean)
+        .join(" ") || "",
+      contact_email:
+        contact.contact_professional_email || contact.contact_personal_email || "",
+      employee_name: user.name || user.user_name || "",
+      employee_email: user.email || user.user_email || "",
+      company_name: contact.tenant?.tenant_name || "VSPH CRM",
+      company_tagline: "Innovation. Technology. People.",
+      company_website: "vsph.in",
+      current_date: new Date().toLocaleDateString(),
+    };
+    setEmailSubject(template.subject.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? ""));
+    setEmailBody(template.body_html?.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "") || "");
+  };
+
   const handleSendEmail = async () => {
     const to =
       contactData?.contact_professional_email ||
       contactData?.contact_personal_email ||
       "";
-    if (!to) return toast.error("This contact has no email address.");
-    if (!emailSubject.trim()) return toast.error("Add a subject.");
-    if (!emailBody.trim()) return toast.error("Write a message.");
+
+    if (selectedTemplateId) {
+      if (!to) return toast.error("This contact has no email address.");
+    } else {
+      if (!to) return toast.error("This contact has no email address.");
+      if (!emailSubject.trim()) return toast.error("Add a subject.");
+      if (!emailBody.trim()) return toast.error("Write a message.");
+    }
 
     setSendingEmail(true);
     try {
-      const res = await api.post("/api/emails/send", {
+      const contact = contactData || {};
+      const user = currentUser || {};
+      const templateVars = {
+        contact_firstname: contact.contact_firstname || "",
+        contact_lastname: contact.contact_lastname || "",
+        contact_name: [
+          contact.contact_salutation,
+          contact.contact_firstname,
+          contact.contact_lastname,
+          contact.contact_suffix,
+        ]
+          .filter(Boolean)
+          .join(" ") || "",
+        contact_email: to,
+        employee_name: user.name || user.user_name || "",
+        employee_email: user.email || user.user_email || "",
+        company_name: contact.tenant?.tenant_name || "VSPH CRM",
+        company_tagline: "Innovation. Technology. People.",
+        company_website: "vsph.in",
+        current_date: new Date().toLocaleDateString(),
         to,
-        subject: emailSubject.trim(),
-        body: emailBody,
+      };
+
+      const res = await api.post("/api/emails/send", {
+        ...(selectedTemplateId ? { template_id: selectedTemplateId, template_vars: templateVars } : { to, subject: emailSubject.trim(), body: emailBody }),
       });
       if (!res.success) throw new Error(res.message || "Could not send the email.");
       toast.success(`Email sent to ${to}`);
       setEmailSubject("");
       setEmailBody("");
+      setSelectedTemplateId("");
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -1080,6 +1156,29 @@ const ConDetailView = ({ isOpen, onClose, contactId }) => {
                               readOnly
                               className="w-full border border-slate-200 rounded px-3 py-2 text-[13px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 bg-slate-50"
                             />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
+                              Email Template
+                            </label>
+                            <select
+                              value={selectedTemplateId}
+                              onChange={(e) => handleTemplateChange(e.target.value)}
+                              className="w-full border border-slate-200 rounded px-3 py-2 text-[13px] text-slate-800 focus:outline-none focus:border-blue-400"
+                            >
+                              <option value="">Select a template</option>
+                              {emailTemplates.map((t) => (
+                                <option key={t.email_template_id} value={t.email_template_id}>
+                                  {t.name}
+                                </option>
+                              ))}
+                            </select>
+                            {emailTemplates.length === 0 && (
+                              <p className="text-[10px] text-slate-500 mt-1">
+                                No templates yet. Create one in Email Templates.
+                              </p>
+                            )}
                           </div>
 
                           <div>
