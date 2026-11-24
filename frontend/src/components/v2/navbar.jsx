@@ -13,7 +13,7 @@ const NAV_ITEMS = [
   { name: 'Projects', path: '/v2/projects', module: 'PROJECTS' },
   { name: 'Campaigns', path: '/v2/campaigns', module: 'CAMPAIGNS' },
   { name: 'Tasks', path: '/v2/tasks', module: 'TASKS' },
-  { name: 'Team', path: '/v2/team' },
+  { name: 'Team', path: '/v2/team', canManage: true },
   { name: 'Email Templates', path: '/v2/email-templates', module: 'CONTACTS' },
 ];
 
@@ -44,8 +44,11 @@ const Navbar = () => {
 
   const canManage = canManageOrganization();
   const navItems = [
-    ...NAV_ITEMS.filter((item) => !item.module || (hasModule(item.module) && canDoAction(item.module, 'VIEW'))),
-    ...(canManage ? [{ name: 'Team', path: '/v2/team' }] : []),
+    ...NAV_ITEMS.filter((item) =>
+      item.canManage !== undefined
+        ? canManage
+        : !item.module || (hasModule(item.module) && canDoAction(item.module, 'VIEW')),
+    ),
   ];
 
   const [profile, setProfile] = useState(readProfile);
