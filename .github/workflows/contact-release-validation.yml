@@ -29,7 +29,10 @@ jobs:
       - run: npm ci
       - run: npm run test:contact-workspace && npm run test:contact-preview && npm run test:contact-motion
       - run: npm run build
-      - run: npm run lint
+      - run: npm run lint:contact
+        if: always()
+      - name: Full repository lint (includes legacy debt)
+        run: npm run lint
         if: always()
       - name: Install isolated browser test runner
         if: always()
@@ -85,20 +88,18 @@ jobs:
       - name: Validate and generate Prisma client
         id: prisma
         run: npx prisma validate && npx prisma generate
-      - name: Replay full migration history (legacy gate)
-        run: npx prisma migrate deploy && npx prisma migrate status
-      - name: Validate the three contact migrations from the pre-change schema
-        if: always() && steps.prisma.outcome == 'success'
+      - name: Bootstrap empty MySQL using verified historical baseline
         id: contact_migrations
+        run: npm run db:bootstrap:local -- --database crm_release_test --confirm-empty
+      - name: Reject a second bootstrap without modifying existing schema
+        if: steps.contact_migrations.outcome == 'success'
         run: |
-          test "$DATABASE_NAME" = crm_release_test
-          test "$DATABASE_URL" = 'mysql://crm_test:isolated-test-password@127.0.0.1:3306/crm_release_test'
-          git show a189ccdbcafdbdd230073cfece0f78acee97f1e9:backend/prisma/schema.prisma > prisma/release-baseline.prisma
-          npx prisma db push --schema prisma/release-baseline.prisma --force-reset --accept-data-loss
-          rm prisma/release-baseline.prisma
-          for migration in 20261124160000_contact_activity_entries 20261124161000_contact_commercial_context 20261124170000_contact_entry_corrections; do
-            npx prisma db execute --file "prisma/migrations/$migration/migration.sql"
-          done
+          if npm run db:bootstrap:local -- --database crm_release_test --confirm-empty > bootstrap-refusal.log 2>&1; then
+            echo "Unexpected successful bootstrap of nonempty database"
+            exit 1
+          fi
+          grep -F 'Refusing bootstrap: database is not empty.' bootstrap-refusal.log
+          npx prisma migrate status
           npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
       - name: Contact HTTP release regression
         if: always() && steps.contact_migrations.outcome == 'success'
