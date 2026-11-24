@@ -145,3 +145,7 @@ New browser regressions cover call + follow-up, notes and email, relationship, o
 ### Final eight-finding hardening
 
 Validate three additive migrations on disposable database; verify field allowlists and tenant-scoped relationships in legacy call/opportunity endpoints, explicit DNC opt-in, correction revision conflicts and audit snapshots, employee self-created open-task due-date only authorization, completion timestamp grouping, full opportunity fields, router blocker and neutral pending dot. Run frontend build/lint, all utility suites, backend tests and Playwright. Router provider now uses a data router for supported useBlocker; verify all CRM routes, browser history and preview navigation. No production migration or rendered checks performed remotely.
+
+### Release validation workflow
+
+CI runs frontend unit suites, production build, lint and Chromium browser tests, plus Prisma validation, all migrations on an isolated MySQL 8 service and backend tests. The contact HTTP regression creates synthetic users/tenants and checks authorization, atomic follow-up rejection, DNC persistence, self-created task rescheduling, revision conflicts, audit history and scoped commercial writes. It refuses any database other than crm_release_test. No production credentials or migrations used. CI execution and actual BDE usability acceptance must be recorded separately.

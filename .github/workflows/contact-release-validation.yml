@@ -1,0 +1,86 @@
+name: CRM contact release validation
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/contact-workspace-redesign]
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - '.github/workflows/contact-release-validation.yml'
+permissions:
+  contents: read
+concurrency:
+  group: contact-release-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run test:contact-workspace && npm run test:contact-preview && npm run test:contact-motion
+      - run: npm run build
+      - run: npm run lint
+        if: always()
+      - name: Install isolated browser test runner
+        if: always()
+        run: npm install --no-save --package-lock=false @playwright/test@1.56.1 && npx playwright install --with-deps chromium
+      - run: npm run test:contact-browser
+        if: always()
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: contact-browser-failures
+          path: frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: isolated-test-root
+          MYSQL_DATABASE: crm_release_test
+          MYSQL_USER: crm_test
+          MYSQL_PASSWORD: isolated-test-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -pisolated-test-root"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      NODE_ENV: test
+      RUN_DB_TESTS: '1'
+      DATABASE_URL: mysql://crm_test:isolated-test-password@127.0.0.1:3306/crm_release_test
+      DATABASE_HOST: 127.0.0.1
+      DATABASE_PORT: '3306'
+      DATABASE_USER: crm_test
+      DATABASE_PASSWORD: isolated-test-password
+      DATABASE_NAME: crm_release_test
+      AUTH_TOKEN_SECRET: isolated-ci-only-secret-never-use-in-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma validate && npx prisma generate
+      - name: Replay migrations on disposable MySQL
+        run: npx prisma migrate deploy && npx prisma migrate status
+      - run: npm test
