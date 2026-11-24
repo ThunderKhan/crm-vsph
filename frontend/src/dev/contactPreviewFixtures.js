@@ -48,8 +48,8 @@ const full = {
   contact_pickup_date: "2026-11-30T00:00:00.000Z", contact_pickup_time: "10:00", contact_pickup_location: "Mumbai Airport",
   contact_drop_date: "2026-11-30T00:00:00.000Z", contact_drop_time: "11:30", contact_drop_location: "Meridian Corporate Office",
   opportunities: [
-    { opportunity_id: "preview-opportunity-1", opportunity_name: "Enterprise CRM Implementation", opportunity_stage: "PROPOSAL", opportunity_close_date: "2026-12-31T00:00:00.000Z" },
-    { opportunity_id: "preview-opportunity-2", opportunity_name: "Customer Experience Analytics", opportunity_stage: "QUALIFICATION", opportunity_close_date: "2027-01-15T00:00:00.000Z" },
+    { opportunity_id: "preview-opportunity-1", opportunity_name: "Enterprise CRM Implementation", opportunity_stage: "CONTRACT_OUT", opportunity_close_date: "2026-12-31T00:00:00.000Z" },
+    { opportunity_id: "preview-opportunity-2", opportunity_name: "Customer Experience Analytics", opportunity_stage: "FOLLOW_UP", opportunity_close_date: "2027-01-15T00:00:00.000Z" },
   ],
 };
 const sparse = { ...common, contact_id: PREVIEW_SCENARIOS[1].id, contact_code: "CON-000022", contact_firstname: "Neel", contact_lastname: "Shah", opportunities: [] };
@@ -126,6 +126,8 @@ export function createContactPreviewStore({ now = () => new Date().toISOString()
   function dispatch(method,endpoint,payload={}) {
     const {path,params} = parseEndpoint(endpoint);
     const query = String(params.search||params.q||"").toLowerCase();
+    const opportunityRoute=/^\/api\/contacts\/([^/]+)\/opportunities(?:\/([^/]+))?$/.exec(path);
+    const relationshipRoute=/^\/api\/contacts\/([^/]+)\/relationship$/.exec(path);
     const entryRoute = /^\/api\/contacts\/([^/]+)\/activities$/.exec(path);
     const entryContact=entryRoute?contactById(decodeURIComponent(entryRoute[1])):null;
     const contactRoute = /^\/api\/contacts\/([^/]+)$/.exec(path);
@@ -161,6 +163,20 @@ export function createContactPreviewStore({ now = () => new Date().toISOString()
       if (!contact) return fail("Contact not found");
       contacts=contacts.filter(c=>c!==contact); calls=calls.filter(c=>c.call_contact_fk!==contact.contact_id); tasks=tasks.filter(t=>t.task_contact_fk!==contact.contact_id);
       return {success:true,message:"Contact deleted"};
+    }
+    if(method==="PATCH"&&relationshipRoute){
+      const contact=contactById(decodeURIComponent(relationshipRoute[1]));
+      const stage=payload.contact_relationship_stage;
+      if(!contact||(stage!==null&&!["NEW","CONTACTED","QUALIFIED","DISQUALIFIED","CUSTOMER"].includes(stage)))return fail("Invalid relationship.");
+      contact.contact_relationship_stage=stage;return ok({contact_relationship_stage:stage});
+    }
+    if(opportunityRoute&&(method==="POST"||method==="PATCH")){
+      const contact=contactById(decodeURIComponent(opportunityRoute[1]));
+      if(!contact||!payload.opportunity_name?.trim()||!payload.opportunity_close_date)return fail("Invalid opportunity.");
+      const existing=opportunityRoute[2]&&contact.opportunities.find(o=>o.opportunity_id===decodeURIComponent(opportunityRoute[2]));
+      if(method==="PATCH"&&!existing)return fail("Linked opportunity not found.");
+      const record={...existing,...payload,opportunity_id:existing?.opportunity_id||id("opportunity"),opportunity_owner:existing?.opportunity_owner||PREVIEW_USER,opportunity_close_date:new Date(payload.opportunity_close_date).toISOString(),opportunity_value:payload.opportunity_value===""?null:payload.opportunity_value,opportunity_currency:payload.opportunity_value===""?null:payload.opportunity_currency};
+      contact.opportunities=[record,...contact.opportunities.filter(o=>o.opportunity_id!==record.opportunity_id)];return ok(record);
     }
     if(method==="POST"&&entryRoute){
       if(!entryContact||!["NOTE","EMAIL","MEETING","LINKEDIN"].includes(payload.entry_kind)||!payload.entry_subject?.trim()||!payload.entry_description?.trim()||(payload.entry_occurred_at&&(!Number.isFinite(new Date(payload.entry_occurred_at).getTime())||new Date(payload.entry_occurred_at)>new Date(now()))))return fail("Invalid activity.");

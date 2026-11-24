@@ -50,7 +50,7 @@ export function activityHistory(calls, tasks, filter = "all", options = {}) {
   }
   for (const record of options.entries || []) {
     const kind=record.entry_kind.toLowerCase();
-    if(filter==="all"||filter===kind)items.push({kind,record,date:record.entry_occurred_at});
+    if(filter==="all"||filter===kind||(filter==="communication"&&kind!=="note"))items.push({kind,record,date:record.entry_occurred_at});
   }
   // Alphabetical ties retain newest-first order, as in the original timeline.
   return selectActivity(items, options, true);

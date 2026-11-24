@@ -128,3 +128,15 @@ test("manual entries are isolated and follow-up creation is linked and atomic in
   assert.equal(result.followup_task.task_contact_fk,full);
   assert.equal((await s.request("GET","/api/tasks?contact_id="+full)).data.length,3);
 });
+
+test("relationship and commercial records update independently and stay contact scoped",async()=>{
+  const s=make();
+  assert.equal((await s.request("PATCH","/api/contacts/"+full+"/relationship",{contact_relationship_stage:"QUALIFIED"})).success,true);
+  assert.equal((await s.request("GET","/api/contacts/"+full)).data.contact_relationship_stage,"QUALIFIED");
+  const payload={opportunity_name:"New deal",opportunity_close_date:"2026-12-30",opportunity_stage:"FOLLOW_UP",opportunity_value:"50000.00",opportunity_currency:"INR",opportunity_next_step:"Send quote"};
+  const created=await s.request("POST","/api/contacts/"+full+"/opportunities",payload);
+  assert.ok(created.data.opportunity_id);
+  assert.equal((await s.request("PATCH","/api/contacts/"+sparse+"/opportunities/"+created.data.opportunity_id,payload)).success,false);
+  assert.equal((await s.request("PATCH","/api/contacts/"+full+"/opportunities/"+created.data.opportunity_id,{...payload,opportunity_next_step:"Review quote"})).data.opportunity_next_step,"Review quote");
+  assert.equal((await s.request("GET","/api/contacts/"+sparse)).data.opportunities.length,0);
+});

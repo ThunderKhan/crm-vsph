@@ -10,6 +10,7 @@ import ContactProperties, { Expandable } from "./contact/ContactProperties";
 import { SlidingTabs, CopyGlyph, useCopyFeedback, Tooltip, ContactSkeleton } from "./contact/ContactMotion";
 import { ActivityFilters, AddActivityMenu } from "./contact/ActivityToolbar";
 import { CallOutcomeFields, TaskAssigneeField, EntryFields } from "./contact/ContactActivityFields";
+import { Opportunities, OpportunityEditor, RelationshipEditor } from "./contact/ContactCommercialWorkspace";
 import { ActivityComposerDialog } from "./contact/ActivityComposerDialog";
 import { ContactTaskEditor, TaskStatusControl } from "./contact/ContactTaskEditor";
 import { useDialogExit } from "./contact/useDialogExit";
@@ -128,7 +129,7 @@ function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, o
   const [visited,setVisited]=useState(expanded);
   function toggle(){if(!expanded)setVisited(true);onExpand(key);}
   return <li className="cw-timeline-item" data-new={newActivity===key} data-completed={done}>
-    <span className="cw-event-icon"><Icon size={18} strokeWidth={2} aria-hidden="true"/><span className="cw-sr">{humanize(kind)}</span></span>
+    <span className="cw-event-icon"><Icon size={18} strokeWidth={2} aria-hidden="true"/><span className="cw-sr">{kind==="linkedin"?"LinkedIn":humanize(kind)}</span></span>
     <div className="cw-event-content">
       <div className="cw-event-top">
         <button type="button" className="cw-event-disclosure" aria-label={`${expanded?"Collapse":"Expand"} details: ${subject}`} aria-expanded={expanded} aria-controls={detailsId} onClick={toggle}><ChevronDown className="cw-chevron" size={18} aria-hidden="true"/></button>
@@ -136,6 +137,7 @@ function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, o
           <h3>{subject}</h3>
           <div className="cw-event-summary-meta">
             {task && <TaskStatusControl record={record} access={taskAccess} busy={updating} onStatus={onTaskStatus}/>}
+            {!call&&!task&&<span className="cw-muted">{kind==="linkedin"?"LinkedIn":humanize(kind)}</span>}
             {call&&record.call_outcome&&<span className="cw-muted">{humanize(record.call_outcome)}</span>}
             {deadline&&<span className="cw-event-time cw-deadline" data-deadline={deadline}>{deadline==="unscheduled"?"No due date":`${deadline==="overdue"?"Overdue · ":deadline==="today"?"Today · ":"Due "}${formatDate(record.task_due_date)}`}</span>}
             {!upcoming&&<span className="cw-event-time">{alphabetical ? formatDate(date)||"Date unavailable" : activityTime(date)}</span>}
@@ -150,7 +152,7 @@ function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, o
           {description ? <p className="cw-event-notes">{description}</p> : <p className="cw-event-no-notes">No notes recorded.</p>}
           <dl className="cw-event-fields">
             <EventField label={task?"Assigned to":"Recorded by"}>{record.user?.user_name || "Unknown user"}</EventField>
-            <EventField label="Created">{formatDate(date) || "Date unavailable"}</EventField>
+            <EventField label={call||task?"Created":"Occurred"}>{formatDate(date) || "Date unavailable"}</EventField>
             {task && <>
               <EventField label="Priority">{humanize(record.task_priority,"Normal")}</EventField>
               <EventField label="Due date">{formatDate(record.task_due_date) || "Not set"}</EventField>
@@ -177,7 +179,7 @@ function useActivityView() {
   return {sort,setSort,status,setStatus,priority,setPriority,deadline,setDeadline,mine,setMine,query,setQuery,searchOpen,setSearchOpen,filterOpen,setFilterOpen,searchId,searchRef,searchButton,expandedKeys,toggle,resetFilters,closeSearch};
 }
 
-function WorkspaceSwitch({view,onChange,contentId}) {
+function WorkspaceSwitch({view,onChange,contentId,canViewOpportunities}) {
   function handleKeys(event){
     if(!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;
     const buttons=Array.from(event.currentTarget.querySelectorAll("button"));
@@ -188,6 +190,7 @@ function WorkspaceSwitch({view,onChange,contentId}) {
     buttons[next]?.focus();
     buttons[next]?.click();
   }
+  if(!canViewOpportunities)return <h2>Activity history</h2>;
   return <div className="cw-workspace-switch" role="group" aria-label="Contact workspace views" data-view={view} onKeyDown={handleKeys}>
     <span className="cw-workspace-switch-indicator" aria-hidden="true"/>
     {[["activity","Activity history"],["opportunities","Opportunities"]].map(([value,label])=><button type="button" key={value} aria-pressed={view===value} aria-controls={contentId} onClick={()=>onChange(value)}>{label}</button>)}
@@ -228,7 +231,7 @@ function Timeline({ calls, tasks, entries, loading, error, filter, setFilter, ca
   return <>
     <h2 className="cw-sr">Activity history</h2>
     <Expandable id={searchId} open={searchOpen}><div className="cw-history-search"><Search size={18} aria-hidden="true"/><input ref={searchRef} type="search" aria-label="Search activities and notes" placeholder="Search activities…" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Escape")closeSearch();}}/><button type="button" className="cw-icon" aria-label="Close search" onClick={closeSearch}><X size={18} aria-hidden="true"/></button></div></Expandable>
-    <SlidingTabs className="cw-history-tabs" label="Filter activity" options={[["all","All activity"],["call","Calls"],...(canViewTasks ? [["task","Tasks"]] : []),["note","Notes"],["email","Emails"],["meeting","Meetings"],["linkedin","LinkedIn"]]} value={filter} onChange={setFilter}/>
+    <SlidingTabs className="cw-history-tabs" label="Filter activity" options={[["all","All activity"],["call","Calls"],...(canViewTasks ? [["task","Tasks"]] : []),["note","Notes"],["communication","Communications"]]} value={filter} onChange={setFilter}/>
     {feedback&&<p className="cw-feedback cw-history-feedback" role="status"><CheckCircle size={16} aria-hidden="true"/>{feedback}{lastCreated&&!items.some(item=>activityKey(item.kind,item.record)===lastCreated)&&" It is hidden by your current view or permissions."}</p>}
     {error && <div className="cw-error cw-history-error" role="alert">{error} <button type="button" className="cw-link" onClick={onRetry}>Retry</button></div>}
     {loading ? <ContactSkeleton history/> : items.length===0 ? <div className="cw-empty cw-history-empty"><FileText size={32} strokeWidth={1.75} aria-hidden="true"/><h3>{error ? "Activity unavailable" : hasFilters ? "No matching activities" : filter==="all" ? "Activity history appears here" : filter==="call" ? "No calls yet" : filter==="task" ? "No tasks yet" : "No matching activities"}</h3><p>{error ? "Retry to load the history." : hasFilters ? "Try changing your filters or search query." : filter==="all" ? "Recorded communications and completed work appear here." : "Recorded interactions will appear here."}</p>{!error&&hasFilters&&<button type="button" className="cw-button" onClick={()=>{resetFilters();setQuery("");}}>Clear filters</button>}</div> :
@@ -237,15 +240,6 @@ function Timeline({ calls, tasks, entries, loading, error, filter, setFilter, ca
         <ol className="cw-timeline-list">{group.items.map(item=>renderNode(item,false))}</ol>
       </section>)}</div>}
   </>;
-}
-
-function Opportunities({ opportunities = [] }) {
-  return <div className="cw-opportunity-content"><div className="cw-panel-header"><h2>Linked opportunities</h2><span className="cw-muted">{opportunities.length} linked</span></div>
-    {opportunities.length ? <ul className="cw-opportunities">{opportunities.map(o => <li key={o.opportunity_id}>
-      <div><h3>{o.opportunity_name || "Untitled opportunity"}</h3><p className="cw-muted">{humanize(o.opportunity_stage,"No stage")}</p></div>
-      <span className="cw-muted">{formatDate(o.opportunity_close_date,true) || "No close date"}</span>
-    </li>)}</ul> : <div className="cw-empty"><h3>No linked opportunities</h3><p>Opportunities associated with this contact will appear here.</p></div>}
-  </div>;
 }
 
 export default function ConDetailView({ isOpen, onClose, contactId, onChanged }) {
@@ -260,7 +254,10 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const [calls,setCalls] = useState([]), [tasks,setTasks] = useState([]), [historyLoading,setHistoryLoading] = useState(true), [historyError,setHistoryError] = useState("");
   const [revision,setRevision] = useState(0), [historyRevision,setHistoryRevision] = useState(0);
   const [searchParams,setSearchParams]=useSearchParams();
-  const tab=searchParams.get("contact_view")==="opportunities"?"opportunities":"activity";
+  const canViewOpportunities=hasModule("OPPORTUNITIES")&&canDoAction("OPPORTUNITIES","VIEW");
+  const canCreateOpportunity=canViewOpportunities&&canDoAction("OPPORTUNITIES","CREATE");
+  const canEditOpportunity=canViewOpportunities&&canDoAction("OPPORTUNITIES","EDIT");
+  const tab=canViewOpportunities&&searchParams.get("contact_view")==="opportunities"?"opportunities":"activity";
   const activityView=useActivityView(), workspaceContentId=useId();
   const [filter,setFilter] = useState("all"), [mode,setMode] = useState(null);
   function switchWorkspace(value){
@@ -275,6 +272,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const [pending,setPending] = useState(null), [saveError,setSaveError] = useState(""), [feedback,setFeedback] = useState("");
   const [edit,setEdit] = useState(false), [focusCampaign,setFocusCampaign] = useState(false), [deleting,setDeleting] = useState(false), [deletePending,setDeletePending] = useState(false), [deleteError,setDeleteError] = useState("");
   const [taskEditing,setTaskEditing]=useState(null);
+  const [opportunityEditing,setOpportunityEditing]=useState(null),[relationshipEditing,setRelationshipEditing]=useState(false);
   const editSaved=useRef(false), dialogOpener=useRef(null);
   const composerId = useId(), composer = useRef(null), saveLock = useRef(false), deleteLock = useRef(false);
   const canEdit = canDoAction("CONTACTS","EDIT"), canDelete = canDoAction("CONTACTS","DELETE"), canCall = canDoAction("CONTACTS","CREATE");
@@ -289,12 +287,12 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   // (which can already be inside an autofocused dialog). Restore after the
   // closing dialog has been removed and its modal focus scope released.
   useLayoutEffect(() => {
-    if (edit || deleting || taskEditing || mode) return;
+    if (edit || deleting || taskEditing || mode || opportunityEditing || relationshipEditing) return;
     const opener=dialogOpener.current;
     dialogOpener.current=null;
     if (opener?.isConnected && !opener.disabled && !opener.closest("[inert]")) opener.focus({preventScroll:true});
     else if(opener) (document.querySelector(".cw-filter-button")||document.querySelector(".cw-workspace-switch button[aria-pressed=true]"))?.focus({preventScroll:true});
-  }, [edit,deleting,taskEditing,mode]);
+  }, [edit,deleting,taskEditing,mode,opportunityEditing,relationshipEditing]);
   useEffect(() => {
     if (!isOpen || !contactId) return;
     let cancelled = false;
@@ -432,9 +430,9 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
       const record = result?.data || result;
       if (!record || result.success === false || result.error || !(isCall ? record.call_id : record.task_id)) throw new Error(errorMessage(result,"Could not save activity."));
       const {followup_task:followupTask,...savedRecord}=record;
-      const saved = {...savedRecord,user:record.user || {user_name:currentUserName}};
+      const saved = {...savedRecord,user:record.user || ((isCall||!task.assignee||task.assignee===currentUserId)?{user_name:currentUserName}:undefined)};
       if (isCall) { setCalls(prev=>[saved,...prev.filter(x=>x.call_id!==saved.call_id)]); setCall(blankCall); if(followupTask&&canViewTasks)setTasks(prev=>[followupTask,...prev.filter(x=>x.task_id!==followupTask.task_id)]); }
-      else { if (canViewTasks) setTasks(prev=>[saved,...prev.filter(x=>x.task_id!==saved.task_id)]); setTask(blankTask); }
+      else { if (canViewTasks) setTasks(prev=>[saved,...prev.filter(x=>x.task_id!==saved.task_id)]); setTask(blankTask); if(task.assignee&&task.assignee!==currentUserId)setHistoryRevision(v=>v+1); }
       savedActivity.current=activityKey(isCall ? "call" : "task",saved);
       setSavedMode(mode);setFeedback(isCall ? (followupTask?"Call and follow-up saved.":"Call saved.") : "Task created.");setRevision(v=>v+1);
     } catch(error) { setSaveError(error.message || "Could not save activity. Try again."); }
@@ -470,15 +468,17 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
 
         <section className="cw-panel cw-activity cw-work-area" aria-label={tab==="activity"?"Activity history":"Opportunities"}>
           <div className="cw-panel-header cw-work-area-header">
-            <WorkspaceSwitch view={tab} onChange={switchWorkspace} contentId={workspaceContentId}/>
+            <WorkspaceSwitch view={tab} onChange={switchWorkspace} contentId={workspaceContentId} canViewOpportunities={canViewOpportunities}/>
             {tab==="activity"&&<ActivityControls view={activityView} filter={filter} canViewTasks={canViewTasks} actions={actions} onAddActivity={openComposer}/>}
           </div>
           <div id={workspaceContentId} className="cw-work-area-content">
-            {tab==="activity" ? <Timeline calls={calls} tasks={tasks} entries={entries} loading={historyLoading} error={historyError} filter={filter} setFilter={value=>{setNewActivity(null);setFilter(value);}} canViewTasks={canViewTasks} onRetry={retryHistory} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={toggleTask} onTaskStatus={changeTaskStatus} onTaskEdit={editTask} feedback={!mode?feedback:""} lastCreated={lastCreated} view={activityView} now={now} userId={currentUserId}/> : <Opportunities opportunities={contact.opportunities || []}/>}
+            {tab==="activity" ? <Timeline calls={calls} tasks={tasks} entries={entries} loading={historyLoading} error={historyError} filter={filter} setFilter={value=>{setNewActivity(null);setFilter(value);}} canViewTasks={canViewTasks} onRetry={retryHistory} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={toggleTask} onTaskStatus={changeTaskStatus} onTaskEdit={editTask} feedback={!mode?feedback:""} lastCreated={lastCreated} view={activityView} now={now} userId={currentUserId}/> : <Opportunities opportunities={contact.opportunities || []} canCreate={canCreateOpportunity} canEdit={canEditOpportunity} onCreate={e=>{dialogOpener.current=e.currentTarget;setOpportunityEditing({record:null});}} onEdit={(record,opener)=>{dialogOpener.current=opener;setOpportunityEditing({record});}}/>}
           </div>
         </section>
-        <ContactProperties contact={contact} summary={summary} historyLoading={historyLoading} historyError={historyError} canViewTasks={canViewTasks}/>
+        <ContactProperties contact={contact} summary={summary} historyLoading={historyLoading} historyError={historyError} canViewTasks={canViewTasks} onEditRelationship={canEdit?e=>{dialogOpener.current=e.currentTarget;setRelationshipEditing(true);}:undefined}/>
       </div>
+      {opportunityEditing&&<OpportunityEditor record={opportunityEditing.record} endpoint={endpoint} onClose={()=>setOpportunityEditing(null)} onSaved={record=>setContact(prev=>({...prev,opportunities:[record,...(prev.opportunities||[]).filter(o=>o.opportunity_id!==record.opportunity_id)]}))}/>}
+      {relationshipEditing&&<RelationshipEditor value={contact.contact_relationship_stage} endpoint={endpoint} onClose={()=>setRelationshipEditing(false)} onSaved={stage=>setContact(prev=>({...prev,contact_relationship_stage:stage}))}/>}
       {mode&&<ActivityComposerDialog key={mode} title={actions.find(a=>a.id===mode)?.label} mode={mode} formId={composerId} pending={!!pending} saved={!!savedMode} submitLabel={mode==="call"&&call.followup?"Save call and follow-up":entryModes[mode]?"Save activity":undefined} disabled={(mode!=="email"&&historyLoading)||(mode==="email"&&!recipients.length)} onClose={finishComposer}>
         <form ref={composer} id={composerId} onSubmit={submit} noValidate className="cw-form cw-activity-form" aria-busy={!!pending}>
                 <fieldset key={mode} disabled={!!pending||!!savedMode} className="cw-form-fields">

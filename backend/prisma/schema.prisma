@@ -214,6 +214,7 @@ model contact {
   contact_title              String?
   contact_mobile             String?
   contact_status             Status?        @default(ACTIVE)
+  contact_relationship_stage relationship_stage?
   contact_created_at         DateTime       @default(now())
   contact_updated_at         DateTime       @updatedAt
   contact_deleted_at         DateTime?
@@ -267,6 +268,9 @@ model opportunity {
   opportunity_drop_time       String?
   opportunity_drop_location   String?
 
+  opportunity_value      Decimal? @db.Decimal(18, 2)
+  opportunity_currency   String? @db.VarChar(3)
+  opportunity_next_step  String? @db.VarChar(191)
   opportunity_name       String
   opportunity_close_date DateTime
   opportunity_created_at DateTime @default(now())
@@ -694,4 +698,12 @@ model contact_activity_entry {
   @@index([contact_fk])
   @@index([user_fk])
   @@map("contact_activity_entries")
+}
+
+enum relationship_stage {
+  NEW
+  CONTACTED
+  QUALIFIED
+  DISQUALIFIED
+  CUSTOMER
 }

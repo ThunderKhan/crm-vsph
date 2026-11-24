@@ -604,3 +604,11 @@
 .cw-task-status[data-status="TODO"],.cw-task-status[data-status="PENDING"] { color:var(--cw-secondary); }
 .cw-filter-mine { display:flex; gap:8px; align-items:center; min-height:44px; margin-top:8px; font-size:14px; cursor:pointer; }
 .cw-filter-mine input { width:18px; height:18px; min-height:0; accent-color:var(--cw-accent); }
+
+.cw-relationship-action { margin:0 24px 8px; }
+.cw-relationship-action .cw-link { min-height:44px; }
+.cw-opportunity-info { display:grid; gap:4px; }
+.cw-opportunity-info h3 .cw-link { display:inline-flex; align-items:center; gap:4px; }
+.cw-opportunity-next { overflow-wrap:anywhere; color:var(--cw-body); }
+.cw-add-menu { max-height:min(65vh,360px); overflow:auto; overscroll-behavior:contain; }
+@media(max-width:480px){.cw-relationship-action{margin-inline:16px;}}

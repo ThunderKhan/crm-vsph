@@ -20,3 +20,20 @@ export function validateFollowup(body) {
   if (typeof body.assignee !== "string" || !body.assignee) return { error: "Choose a follow-up assignee." };
   return { data: { task_subject: subject, task_due_date: due, task_user_fk: body.assignee } };
 }
+
+export const RELATIONSHIP_STAGES=["NEW","CONTACTED","QUALIFIED","DISQUALIFIED","CUSTOMER"];
+export const OPPORTUNITY_STAGES=["PITCH_DONE","FOLLOW_UP","CONTRACT_OUT","CLOSED_WON","CLOSED_LOST"];
+export function validateLinkedOpportunity(body) {
+  const name=typeof body.opportunity_name==="string"?body.opportunity_name.trim():"";
+  const stage=body.opportunity_stage||null;
+  const date=body.opportunity_close_date;
+  const close=typeof date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(date)?new Date(date+"T00:00:00.000Z"):null;
+  if(!name||name.length>191||!close||!Number.isFinite(close.getTime())||close.toISOString().slice(0,10)!==date)return {error:"Enter an opportunity name and valid close date."};
+  if(stage!==null&&!OPPORTUNITY_STAGES.includes(stage))return {error:"Invalid opportunity stage."};
+  const amount=body.opportunity_value==null?"":String(body.opportunity_value).trim();
+  const currency=typeof body.opportunity_currency==="string"?body.opportunity_currency.trim().toUpperCase():"";
+  if(amount&&(!/^\d{1,16}(\.\d{1,2})?$/.test(amount)||!/^[A-Z]{3}$/.test(currency)))return {error:"Enter a nonnegative amount and a three-letter currency code."};
+  const step=typeof body.opportunity_next_step==="string"?body.opportunity_next_step.trim():"";
+  if(step.length>191)return {error:"Next step must be 191 characters or fewer."};
+  return {data:{opportunity_name:name,opportunity_stage:stage,opportunity_close_date:close,opportunity_value:amount||null,opportunity_currency:amount?currency:null,opportunity_next_step:step||null}};
+}

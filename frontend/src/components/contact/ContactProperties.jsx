@@ -52,7 +52,7 @@ function PropertyGroup({ title, children }) {
   </section>;
 }
 
-function ContactProperties({ contact: c, summary, historyLoading, historyError, canViewTasks }) {
+function ContactProperties({ contact: c, summary, historyLoading, historyError, canViewTasks, onEditRelationship }) {
   const [allOpen,setAllOpen] = useState(false);
   const allId = useId();
   const phone = c.contact_mobile || c.contact_phone;
@@ -71,6 +71,7 @@ function ContactProperties({ contact: c, summary, historyLoading, historyError, 
         ["Designation", c.contact_designation],
         ["Role",c.contact_role],
         ["Record status",humanize(c.contact_status)],
+        ["Relationship",humanize(c.contact_relationship_stage,"Not set")],
         ["Call status",humanize(c.contact_call_status)],
         ["Last logged call",summary?.lastCall?formatDate(summary.lastCall.call_created_at):null,{fallback:historyLoading?"Loading…":historyError?"Unavailable":"No calls logged"}],
         ...(canViewTasks?[["Next scheduled task",summary?.nextTask?`${summary.nextTask.task_subject || "Untitled task"} · ${formatDate(summary.nextTask.task_due_date)}`:null,{fallback:historyLoading?"Loading…":historyError?"Unavailable":"No scheduled task"}]]:[]),
@@ -78,6 +79,7 @@ function ContactProperties({ contact: c, summary, historyLoading, historyError, 
         ["Campaign", c.contact_campaign?.campaign_name, {fallback:"Not assigned"}],
       ])}
     </dl>
+    {onEditRelationship&&<div className="cw-relationship-action"><button type="button" className="cw-link" onClick={onEditRelationship}>Edit relationship</button></div>}
     <div className="cw-details-footer"><button type="button" className="cw-details-toggle" aria-expanded={allOpen} aria-controls={allId} onClick={()=>setAllOpen(v=>!v)}>{allOpen ? "Hide additional contact details" : "View all contact details"}<ChevronRight size={18} className="cw-details-chevron" aria-hidden="true"/></button></div>
     <div id={allId} className="cw-all-details" data-open={allOpen} inert={!allOpen} aria-hidden={!allOpen}><div className="cw-all-details-inner">
     <PropertyGroup title="Professional information">

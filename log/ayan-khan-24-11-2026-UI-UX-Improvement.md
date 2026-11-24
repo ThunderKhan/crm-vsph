@@ -267,3 +267,7 @@ Separate open work (due-order, no duplication) from historical calls/completed t
 ## 30. BDE milestone 2: communication records and atomic call follow-ups
 
 Add nullable per-call outcome using existing enum and transactional linked task creation with server-side task permission and assignment checks; separate tenant-scoped manual note/email/meeting/LinkedIn records (no implied sending or scheduling). Existing role policy remains intact. Additive migration; do not run against production without approval. Existing API response preserved for call-only writes. Native dialogs, draft preservation and toolbar patterns reused; preview supports real-shaped writes. Full Prisma/MySQL/browser verification pending.
+
+## 31. BDE milestone 3: commercial workspace
+
+Linked opportunities use actual persisted stage enum, explicit nullable value/currency/next step, owner, close date, deep link and compact create/edit dialogs. Scoped endpoints validate contact/tenant and opportunity permissions; no reassignment or arbitrary payload spreads. Contact detail includes opportunities only with VIEW permission. Relationship stage is separate, optional and explicitly selected; existing records remain unset. No sales-stage inference. Manual communication channels grouped into Communications tab to protect density. Additive database migration not deployed.

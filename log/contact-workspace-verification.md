@@ -133,3 +133,7 @@ Run all existing suites plus deadline/queue regression. Inspect upcoming and pas
 ### BDE milestone 2
 
 Apply migration only to disposable database first, generate Prisma, run backend tests; validate atomic linked task write including unauthorized/invalid assignee, cross-tenant contact, rejected request with no partial call, note isolation, manually logged timestamps, all activity filters, draft/error handling, mobile and keyboard. Verify existing calls and task history still work. No production migration performed.
+
+### BDE milestone 3
+
+Apply both additive migrations in disposable database, generate Prisma and run backend tests. Verify permissions and tenant isolation for opportunity create/edit/read and relationship edit, nullable value/currency, valid stage, explicit unset relationship, mobile dialog/focus and link. Do not deploy migration to production until review and database validation. Browser and full build pending.

@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma.js";
 import { getTenantFilter } from "../middleware/auth.middleware.js";
+import { canDoAction } from "../lib/modules.js";
 import { findOrCreateIndustry } from "../lib/industries.js";
 
 export const getContacts = async (req, res) => {
@@ -491,7 +492,7 @@ export const getContactById = async (req, res) => {
   try {
     const { id } = req.params;
     const contact = await prisma.contact.findUnique({
-      where: { contact_id: id, ...getTenantFilter(req) },
+      where: { contact_id: id, contact_deleted_at:null, ...getTenantFilter(req) },
       include: {
         account: { select: { account_name: true } },
         contact_owner: { select: { user_name: true } },
@@ -500,15 +501,20 @@ export const getContactById = async (req, res) => {
         contact_campaign: true,
         contact_account_billing_address: true,
         contact_account_shipping_address: true,
-        opportunities: {
+        opportunities: canDoAction(req.user,"OPPORTUNITIES","VIEW") ? {
+          where: getTenantFilter(req),
           select: {
             opportunity_id: true,
             opportunity_name: true,
             opportunity_stage: true,
             opportunity_close_date: true,
+            opportunity_value:true,
+            opportunity_currency:true,
+            opportunity_next_step:true,
+            opportunity_owner:{select:{user_id:true,user_name:true}},
           },
           orderBy: { opportunity_created_at: "desc" },
-        },
+        } : false,
       },
     });
 
