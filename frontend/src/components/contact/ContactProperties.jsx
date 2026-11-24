@@ -38,7 +38,7 @@ function Property({ label, value, href, to, copy = false, fallback = "Not provid
     <dd className={!hasValue ? "cw-muted" : ""}>
       <div className="cw-property-value">
         {hasValue && to ? <Link className="cw-property-text" to={to}>{value}</Link> : hasValue && href ?
-          <a className={`cw-property-text${singleLine ? " cw-property-single-line" : ""}`} href={href} title={singleLine ? String(value) : undefined} target={external ? "_blank" : undefined} rel={external ? "noopener noreferrer" : undefined}>{value}{external && <ExternalLink size={14} aria-hidden="true" />}</a> :
+          <a className={`cw-property-text${singleLine ? " cw-property-single-line" : ""}${external ? " cw-property-external" : ""}`} href={href} title={singleLine || external ? String(value) : undefined} target={external ? "_blank" : undefined} rel={external ? "noopener noreferrer" : undefined}>{external ? <><span className="cw-external-label">{value}</span><ExternalLink size={14} aria-hidden="true" /></> : value}</a> :
           <span className={`cw-property-text${singleLine && hasValue ? " cw-property-single-line" : ""}`} title={singleLine && hasValue ? String(value) : undefined}>{hasValue ? String(value) : fallback}</span>}
         {copy && hasValue && <button type="button" className="cw-icon" aria-label={copied ? `${label} copied` : `Copy ${label}`} title={copied ? "Copied" : `Copy ${label}`} onClick={copyValue}>{copied ? <Check size={16} /> : <Copy size={16} />}</button>}
       </div>

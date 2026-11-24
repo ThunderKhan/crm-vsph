@@ -203,3 +203,7 @@ Remove the duplicate contact record code and separator from the breadcrumb. Keep
 ## 14. Quick actions copy reduction — 24 November 2026
 
 Remove the redundant helper sentence below quick action buttons. Preserve balanced bottom padding when the composer is closed and retain existing open-composer spacing.
+
+## 15. Expanded contact details alignment — 24 November 2026
+
+Apply the summary's two-column label/value grid, typography, spacing and copy-button treatment to every expanded property group using the common Property styles. Keep all values left aligned, preserve full readable expanded email/phone values, and keep external-link icons alongside single-line ellipsized URL labels with full destinations and titles intact. Long descriptive values may wrap; no fields or accordion behavior removed.

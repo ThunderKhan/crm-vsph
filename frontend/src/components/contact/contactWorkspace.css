@@ -34,16 +34,19 @@
 .cw-panel-heading,.cw-panel-header { padding:16px 24px 12px; }
 .cw-properties .cw-panel-heading { margin:0 24px; padding:16px 0 12px; border-bottom:1px solid #e1e5e9; }
 .cw-panel-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
-.cw-property-list { padding:8px 24px 16px; display:grid; gap:12px; }
-.cw-property { min-width:0; position:relative; }
-.cw-property dt { font-size:14px; color:#52647a; line-height:20px; margin-bottom:4px; }
-.cw-property dd { font-size:16px; line-height:24px; font-weight:500; overflow-wrap:anywhere; min-width:0; }
-.cw-property-value { display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; }
+.cw-property-list { padding:8px 24px 16px; display:grid; gap:0; }
+.cw-property { min-width:0; position:relative; display:grid; grid-template-columns:clamp(88px,30%,112px) minmax(0,1fr); align-items:center; column-gap:16px; min-height:48px; padding:4px 0; }
+.cw-property dt { font-size:14px; color:#52647a; line-height:20px; margin:0; overflow-wrap:anywhere; }
+.cw-property dd { text-align:left; font-size:14px; line-height:22px; font-weight:500; overflow-wrap:anywhere; min-width:0; }
+.cw-property-value { display:flex; align-items:center; justify-content:flex-start; gap:4px; min-width:0; }
 .cw-property-value > .cw-property-text { min-width:0; flex:1 1 auto; overflow-wrap:anywhere; word-break:normal; }
 .cw-property-value > .cw-property-single-line { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; overflow-wrap:normal; word-break:normal; }
 .cw-property-value a { display:inline; color:#0069c8; text-decoration:none; text-underline-offset:3px; }
 .cw-property-value a:hover,.cw-property-value a:focus-visible { text-decoration:underline; }
 .cw-property-value a svg { flex:none; }
+.cw-property-value > .cw-property-external { display:flex; align-items:center; gap:6px; }
+.cw-external-label { min-width:0; flex:1 1 auto; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.cw-property-value .cw-icon { background:transparent; border-color:transparent; color:#52647a; }
 .cw-property dd.cw-muted { font-weight:500; color:#00255a; }
 .cw-property-group { border-top:1px solid #e1e5e9; }
 .cw-disclosure { padding:12px 24px; min-height:52px; width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:14px; font-weight:600; text-align:left; cursor:pointer; }
@@ -176,12 +179,7 @@
 .cw-breadcrumb .cw-back { color:#52647a; gap:4px; }
 .cw-identity-side .cw-button:not(.cw-icon) { min-width:128px; }
 .cw-summary-properties { gap:0; padding-top:0; padding-bottom:16px; }
-.cw-summary-properties .cw-property { display:grid; grid-template-columns:clamp(88px,30%,112px) minmax(0,1fr); align-items:center; column-gap:16px; min-height:48px; padding:4px 0; }
-.cw-summary-properties dt { margin:0; }
-.cw-summary-properties dd { text-align:left; font-size:14px; line-height:22px; }
-.cw-summary-properties .cw-property-value { justify-content:flex-start; gap:4px; }
-.cw-summary-properties .cw-property-text { text-align:left; }
-.cw-summary-properties .cw-icon { background:transparent; border-color:transparent; color:#52647a; }
+
 .cw-details-footer { margin:0 24px; padding:8px 0 18px; border-top:1px solid #e1e5e9; }
 .cw-details-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:44px; color:#0069c8; font-size:14px; font-weight:500; text-align:left; cursor:pointer; }
 .cw-details-chevron { flex:none; transition:transform var(--motion-standard) var(--ease-out); }
@@ -200,7 +198,7 @@
   .cw-workspace { gap:14px; }
   .cw-identity { min-height:0; }
   .cw-identity-side .cw-button:not(.cw-icon) { min-width:0; }
-  .cw-summary-properties .cw-property { grid-template-columns:clamp(80px,30%,100px) minmax(0,1fr); column-gap:12px; }
+  .cw-property { grid-template-columns:clamp(80px,30%,100px) minmax(0,1fr); column-gap:12px; }
   .cw-details-footer { margin-inline:16px; }
   .cw-history-tabs { gap:4px; }
   .cw-history-tabs button { min-width:0; padding-inline:12px; }

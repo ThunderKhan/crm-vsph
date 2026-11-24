@@ -76,3 +76,8 @@ When backend credentials are unavailable, follow [contact-preview.md](contact-pr
 
 - [ ] Identity header contains avatar, contact name, record code and permitted actions only; no call-status indicator or duplicated owner. Owner remains in Contact details and call status in expanded Additional information.
 - [ ] Header has no leftover blank status/owner row; content is vertically centered on desktop and wraps at narrow widths.
+
+### Expanded property formatting checks
+
+- [ ] Open every property group; label and value tracks align with the summary at desktop and mobile widths, with identical typography and row spacing.
+- [ ] External profile/navigator URL labels truncate gracefully; icons remain beside the text and links open the complete destination. Expanded email and phone values remain readable/copyable; long descriptive values wrap without horizontal overflow.
