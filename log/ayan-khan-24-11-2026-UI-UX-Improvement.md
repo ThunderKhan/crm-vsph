@@ -199,3 +199,7 @@ User approved removing the Connected/call-status indicator and duplicated owner 
 ## 13. Breadcrumb simplification — 24 November 2026
 
 Remove the duplicate contact record code and separator from the breadcrumb. Keep only the back-to-Contacts action; retain the code in the identity header and existing copy-ID action.
+
+## 14. Quick actions copy reduction — 24 November 2026
+
+Remove the redundant helper sentence below quick action buttons. Preserve balanced bottom padding when the composer is closed and retain existing open-composer spacing.

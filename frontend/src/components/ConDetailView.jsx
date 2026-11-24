@@ -242,10 +242,9 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
       </div>
       {tab==="overview" ? <div className="cw-grid">
         <div className="cw-activity">
-          <section className="cw-panel cw-composer-panel" aria-labelledby="cw-composer-heading">
+          <section className="cw-panel cw-composer-panel" data-composer-open={!!mode} aria-labelledby="cw-composer-heading">
             <div className="cw-panel-header"><h2 id="cw-composer-heading">Quick actions</h2></div>
             <div className="cw-quick-actions" ref={quickActions}>{actions.map(({id,label})=><button type="button" className={`cw-button ${!mode && id===actions[0]?.id ? "cw-primary" : ""}`} key={id} data-mode={id} aria-pressed={mode===id} aria-expanded={mode===id} aria-controls={composerId} onClick={()=>openComposer(id)} disabled={!!pending}>{label}</button>)}</div>
-            {!mode && <p className="cw-muted cw-composer-hint">Record an interaction or plan a follow-up.</p>}
             <Expandable open={!!mode} id={composerId}><div ref={composer} className="cw-composer">
               {displayMode && <form onSubmit={submit} className="cw-form">
                 <h3>{actions.find(a=>a.id===displayMode)?.label}</h3>

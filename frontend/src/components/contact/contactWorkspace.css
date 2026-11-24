@@ -54,7 +54,7 @@
 .cw-quick-actions .cw-button { flex:1 1 140px; min-height:54px; border-color:#c7d1dc; font-weight:600; }
 .cw-quick-actions .cw-primary { border-color:#0069c8; }
 .cw-quick-actions .cw-button[aria-pressed="true"] { background:#f1f2f2; border-color:#0069c8; color:#0069c8; }
-.cw-composer-hint { padding:0 24px 24px; }
+.cw-composer-panel[data-composer-open="false"] .cw-quick-actions { padding-bottom:24px; }
 .cw-composer { padding:0 24px; }
 .cw-form { display:grid; gap:16px; padding:16px 0 24px; border-top:1px solid #e1e5e9; }
 .cw-form-fields { min-width:0; border:0; padding:0; display:grid; gap:16px; }
@@ -112,7 +112,7 @@
   .cw-workspace h1 { font-size:24px; line-height:32px; }
   .cw-panel-header,.cw-main-tabs,.cw-quick-actions { padding-left:16px; padding-right:16px; }
   .cw-properties .cw-panel-heading,.cw-history-tabs { margin-inline:16px; }
-  .cw-property-list,.cw-disclosure,.cw-composer,.cw-composer-hint,.cw-timeline,.cw-feedback,.cw-opportunities { padding-left:16px; padding-right:16px; }
+  .cw-property-list,.cw-disclosure,.cw-composer,.cw-timeline,.cw-feedback,.cw-opportunities { padding-left:16px; padding-right:16px; }
   .cw-date-row { grid-template-columns:minmax(0,1fr); }
   .cw-menu { right:auto; left:0; max-width:calc(100vw - 64px); }
 }
