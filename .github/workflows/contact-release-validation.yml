@@ -88,6 +88,18 @@ jobs:
       - name: Validate and generate Prisma client
         id: prisma
         run: npx prisma validate && npx prisma generate
+      - name: Reject remote and mismatched database targets before bootstrap
+        run: |
+          if DATABASE_URL=mysql://test:test@example.invalid/crm_release_test npm run db:bootstrap:local -- --database crm_release_test --confirm-empty > bootstrap-guard.log 2>&1; then
+            echo "Unexpected remote bootstrap success"
+            exit 1
+          fi
+          grep -F "Refusing bootstrap: DATABASE_URL" bootstrap-guard.log
+          if npm run db:bootstrap:local -- --database wrong_database --confirm-empty > bootstrap-guard.log 2>&1; then
+            echo "Unexpected mismatched bootstrap success"
+            exit 1
+          fi
+          grep -F "Refusing bootstrap: DATABASE_URL" bootstrap-guard.log
       - name: Bootstrap empty MySQL using verified historical baseline
         id: contact_migrations
         run: npm run db:bootstrap:local -- --database crm_release_test --confirm-empty

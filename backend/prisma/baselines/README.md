@@ -8,7 +8,7 @@ The frozen pre-contact schema is the exact schema from commit a189ccdbcafdbdd230
 
 ## New local/dev installations only
 
-Create a new empty MySQL database using your normal DBA tooling. Set DATABASE_URL in the backend environment to that database on a loopback host. Configure the matching DATABASE_HOST, DATABASE_PORT, DATABASE_USER, DATABASE_PASSWORD and DATABASE_NAME for the app. Use a dedicated local instance, not a tunnel or proxy to a remote database. Do not allow concurrent migrations or access during bootstrap.
+Create a new empty MySQL database using your normal DBA tooling. Set DATABASE_URL in the backend environment to that database on a loopback host. Configure the matching DATABASE_HOST, DATABASE_PORT, DATABASE_USER, DATABASE_PASSWORD and DATABASE_NAME for the app. Use a dedicated local instance, not a tunnel or proxy to a remote database. The bootstrap uses a TLS-enabled local MySQL connection (including local self-signed certificates, as supported by the existing application adapter). Enable TLS on the local server. No remote TLS settings are changed. Do not allow concurrent migrations or access during bootstrap.
 
 From backend:
 

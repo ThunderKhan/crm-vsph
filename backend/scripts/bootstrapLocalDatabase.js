@@ -33,11 +33,15 @@ async function main(){
   const {PrismaClient}=prismaClientPackage;
   const db=new PrismaClient({adapter:new PrismaMariaDb({
     host:url.hostname.replace(/^\[|\]$/g,""),port:Number(url.port||3306),
-    user:decodeURIComponent(url.username),password:decodeURIComponent(url.password),database:name,connectionLimit:1
+    user:decodeURIComponent(url.username),password:decodeURIComponent(url.password),database:name,
+    connectionLimit:1,connectTimeout:30000,acquireTimeout:35000,
+    // The verified loopback-only target may use a self-signed local MySQL certificate.
+    // Match the application adapter’s TLS handshake; never apply this to remote targets.
+    ssl:{rejectUnauthorized:false}
   })});
   try{
     const [result]=await db.$queryRawUnsafe("SELECT DATABASE() AS database_name, (SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE()) + (SELECT COUNT(*) FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA=DATABASE()) + (SELECT COUNT(*) FROM information_schema.EVENTS WHERE EVENT_SCHEMA=DATABASE()) AS object_count");
-    if(result.database_name!==name||Number(result.object_count)!==0)throw Error("Refusing bootstrap: database is not empty.");
+    if(result?.database_name!==name||Number(result.object_count)!==0)throw Error("Refusing bootstrap: database is not empty.");
   }finally{await db.$disconnect();}
   const sql=run(["migrate","diff","--from-empty","--to-schema",baseline,"--script"]);
   if(!sql.trim()||!sql.includes("CREATE TABLE"))throw Error("Baseline DDL was not generated.");
