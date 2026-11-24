@@ -135,7 +135,7 @@ export function taskDeadline(task, now) {
   return due.toDateString() === today.toDateString() ? "today" : "upcoming";
 }
 
-export function splitActivity(items, now) {
+export function splitActivity(items) {
   const open = [], past = [];
   for (const item of items) {
     if (item.kind === "task" && item.record.task_status !== "COMPLETED") open.push(item);

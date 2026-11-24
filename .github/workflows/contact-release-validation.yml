@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
       run:
@@ -44,7 +44,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
       mysql:
@@ -74,13 +74,35 @@ jobs:
       AUTH_TOKEN_SECRET: isolated-ci-only-secret-never-use-in-production
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - run: npx prisma validate && npx prisma generate
-      - name: Replay migrations on disposable MySQL
+      - name: Validate and generate Prisma client
+        id: prisma
+        run: npx prisma validate && npx prisma generate
+      - name: Replay full migration history (legacy gate)
         run: npx prisma migrate deploy && npx prisma migrate status
-      - run: npm test
+      - name: Validate the three contact migrations from the pre-change schema
+        if: always() && steps.prisma.outcome == 'success'
+        id: contact_migrations
+        run: |
+          test "$DATABASE_NAME" = crm_release_test
+          test "$DATABASE_URL" = 'mysql://crm_test:isolated-test-password@127.0.0.1:3306/crm_release_test'
+          git show a189ccdbcafdbdd230073cfece0f78acee97f1e9:backend/prisma/schema.prisma > prisma/release-baseline.prisma
+          npx prisma db push --schema prisma/release-baseline.prisma --force-reset --accept-data-loss
+          rm prisma/release-baseline.prisma
+          for migration in 20261124160000_contact_activity_entries 20261124161000_contact_commercial_context 20261124170000_contact_entry_corrections; do
+            npx prisma db execute --file "prisma/migrations/$migration/migration.sql"
+          done
+          npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+      - name: Contact HTTP release regression
+        if: always() && steps.contact_migrations.outcome == 'success'
+        run: node --test tests/contact-release.db.test.js
+      - name: Full backend regression
+        if: always() && steps.contact_migrations.outcome == 'success'
+        run: npm test

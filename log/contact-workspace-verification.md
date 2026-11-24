@@ -149,3 +149,7 @@ Validate three additive migrations on disposable database; verify field allowlis
 ### Release validation workflow
 
 CI runs frontend unit suites, production build, lint and Chromium browser tests, plus Prisma validation, all migrations on an isolated MySQL 8 service and backend tests. The contact HTTP regression creates synthetic users/tenants and checks authorization, atomic follow-up rejection, DNC persistence, self-created task rescheduling, revision conflicts, audit history and scoped commercial writes. It refuses any database other than crm_release_test. No production credentials or migrations used. CI execution and actual BDE usability acceptance must be recorded separately.
+
+### First CI run — 45396967984
+
+Frontend npm ci, contact Node suites and production build passed; Prisma validate/generate passed. Full lint reported 115 errors and 14 warnings across the repository. Browser launch blocked by Playwright 1.56.1 unsupported Ubuntu 26.04 default image. Full migration replay blocked at 20261102000000_central_client_onboarding (P3018 / MySQL 1146: tenants table does not exist). Keep that failure visible; do not rewrite historical migrations or mark them applied. Pin Ubuntu 24.04; separately replay the three new contact migrations on a reset, explicitly guarded disposable database built from the pre-change schema and check schema diff. Fix straightforward contact pagination and list lint findings; broader existing lint debt is not waived. No production database touched.

@@ -219,7 +219,7 @@ function Timeline({ calls, tasks, entries, loading, error, filter, setFilter, ca
     [calls, tasks, filter, query, activeStatus, activePriority, sort, activeDeadline, activeMine, userId, now, entries]
   );
   const alphabetical = sort === "az" || sort === "za";
-  const {open,past}=useMemo(()=>splitActivity(items,now),[items,now]);
+  const {open,past}=useMemo(()=>splitActivity(items),[items]);
   const groups = useMemo(
     () => alphabetical ? [{ key: "alphabetical", label: null, items }] : groupActivityByDate(past),
     [alphabetical, items, past]
@@ -317,7 +317,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged, n
     };
     const fetchTasks = async () => {
       if (!canViewTasks) return;
-      const records = []; let page = 1, pages = 1;
+      const records = []; let page = 1, pages;
       do {
         const result = await api.get(`/api/tasks?contact_id=${id}&limit=100&page=${page}`);
         if (!result.success || !Array.isArray(result.data)) throw new Error(errorMessage(result,"Could not load tasks."));
@@ -329,7 +329,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged, n
     };
     const fetchEntries=async()=>{
       const records=[];
-      let page=1,pages=1;
+      let page=1,pages;
       do {
         const result=await api.get(`${endpoint}/activities?limit=100&page=${page}`);
         if(!result.success||!Array.isArray(result.data))throw new Error(errorMessage(result,"Could not load communication history."));

@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Download, Plus, Search, Eye, Edit2, Loader2, Trash2, Users,
+  Plus, Search, Eye, Edit2, Loader2, Trash2, Users,
 } from "lucide-react";
 import Button from "../components/ui/Button";
 import PageHeader from "../components/ui/PageHeader";
@@ -41,12 +41,7 @@ const Contacts = () => {
   const canDelete = canDoAction("CONTACTS", "DELETE");
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const t = setTimeout(() => fetchContacts(), 300);
-    return () => clearTimeout(t);
-  }, [searchTerm, currentPage]);
-
-  const fetchContacts = async () => {
+  const fetchContacts = useCallback(async () => {
     try {
       setLoading(true);
       const query = `?page=${currentPage}&limit=${limit}${
@@ -63,7 +58,12 @@ const Contacts = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, limit, searchTerm]);
+
+  useEffect(() => {
+    const t = setTimeout(() => fetchContacts(), 300);
+    return () => clearTimeout(t);
+  }, [fetchContacts]);
 
   const toggleSelectAll = () => {
     if (selectAll) {
@@ -112,24 +112,6 @@ const Contacts = () => {
       toast.error("Some contacts could not be deleted");
       fetchContacts();
     }
-  };
-
-  const callStatusBadge = (status) => {
-    const variants = {
-      CONNECTED: "bg-emerald-50 text-emerald-700 border-emerald-100",
-      PITCH_DONE: "bg-vsph-core-blue/10 text-vsph-core-blue border-vsph-core-blue/20",
-      FOLLOW_UP: "bg-vsph-light-blue/20 text-vsph-core-blue border-vsph-light-blue/20",
-      NOT_INTERESTED: "bg-rose-50 text-rose-700 border-rose-100",
-      NOT_RELEVANT: "bg-slate-50 text-slate-600 border-slate-100",
-      LEFT_ORGANIZATION: "bg-rose-50 text-rose-700 border-rose-100",
-      NOT_AVAILABLE: "bg-amber-50 text-amber-700 border-amber-100",
-      NOT_CONNECTED: "bg-rose-50 text-rose-700 border-rose-100",
-    };
-    return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${variants[status] || variants.NOT_RELEVANT}`}>
-        {status ? status.replace(/_/g, " ") : "—"}
-      </span>
-    );
   };
 
   if (viewContactId) {
