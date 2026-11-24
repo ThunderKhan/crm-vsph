@@ -184,7 +184,8 @@ test("timeline groups by date and reveals individual nodes without changing task
   await expect(call.getByRole("button",{name:"Collapse details: Technical requirements follow-up"})).toHaveAttribute("aria-expanded","true");
   await page.getByRole("button",{name:"Tasks",exact:true}).click();
   await expect(history.locator(".cw-timeline-item")).toHaveCount(2);
-  await expect(history.locator(".cw-timeline-date")).toHaveCount(2);
+  await expect(history.locator(".cw-timeline-date")).toHaveCount(0);
+  await expect(history.locator(".cw-upcoming .cw-timeline-item")).toHaveCount(2);
 });
 
 test("full header disclosure, search and activity filters work together",async({page})=>{
@@ -265,6 +266,7 @@ test("activity creation preserves filters and drafts and supports task and email
   await cancelActivity(page);
   await openActivity(page,"Create task");
   await expect(page.getByLabel("Description")).toHaveValue("Retained notes");
+  await page.getByLabel("Assignee",{exact:true}).selectOption("preview-user-2");
   await page.getByRole("dialog").getByRole("button",{name:"Create task",exact:true}).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(input).toHaveValue("technical");
@@ -408,4 +410,83 @@ test("final craft pass preserves keyboard views, address rows and narrow toolbar
   await expect(page.getByRole("heading",{name:/Neel Shah/})).toBeVisible();
   await expect(page.getByRole("heading",{name:"No linked opportunities"})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+});
+
+test("business development workflow logs a call with linked follow-up, notes and communication",async({page})=>{
+  await page.goto(url);
+  const history=page.getByRole("region",{name:"Activity history"});
+  await openActivity(page,"Log a call");
+  const dialog=page.getByRole("dialog",{name:"Log a call"});
+  await dialog.getByLabel("Subject / outcome").fill("Discussed annual contract");
+  await dialog.getByLabel("Call notes").fill("Client wants a revised quotation");
+  await dialog.getByLabel("Call outcome").selectOption("CONNECTED");
+  await dialog.getByRole("checkbox",{name:"Schedule a follow-up"}).check();
+  await dialog.getByLabel("Follow-up subject").fill("Send revised quotation");
+  await dialog.getByLabel("Follow-up date").fill("2026-11-25");
+  await dialog.getByLabel("Assignee",{exact:true}).selectOption("preview-user-2");
+  await dialog.getByRole("button",{name:"Save call and follow-up"}).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(history.getByText("Call and follow-up saved.")).toBeVisible();
+  await expect(history.locator(".cw-upcoming").getByRole("heading",{name:"Send revised quotation"})).toBeVisible();
+  await expect(history.getByRole("heading",{name:"Discussed annual contract"})).toBeVisible();
+  await openActivity(page,"Add note");
+  await page.getByRole("dialog").getByLabel("Subject").fill("Buying preference");
+  await page.getByRole("dialog").getByLabel("Note",{exact:true}).fill("Annual budget approval by finance");
+  await page.getByRole("dialog").getByRole("button",{name:"Save activity"}).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await history.getByRole("button",{name:"Notes",exact:true}).click();
+  await expect(history.getByRole("heading",{name:"Buying preference"})).toBeVisible();
+  await openActivity(page,"Log email");
+  await page.getByRole("dialog").getByLabel("Subject").fill("Quotation email sent externally");
+  await page.getByRole("dialog").getByLabel("Interaction notes").fill("Sent via existing mail client");
+  await page.getByRole("dialog").getByRole("button",{name:"Save activity"}).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await history.getByRole("button",{name:"Communications",exact:true}).click();
+  await expect(history.getByRole("heading",{name:"Quotation email sent externally"})).toBeVisible();
+});
+
+test("commercial workspace saves relationship and scoped opportunity details",async({page})=>{
+  await page.goto(url);
+  await page.getByRole("button",{name:"Edit relationship"}).click();
+  const relationship=page.getByRole("dialog",{name:"Edit relationship"});
+  await relationship.getByLabel("Relationship stage").selectOption("QUALIFIED");
+  await relationship.getByRole("button",{name:"Save relationship"}).click();
+  await expect(relationship).toHaveCount(0);
+  await expect(page.locator(".cw-properties").getByText("Qualified",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Opportunities",exact:true}).click();
+  await page.getByRole("button",{name:"Add opportunity"}).click();
+  const dialog=page.getByRole("dialog",{name:"Add opportunity"});
+  await dialog.getByLabel("Opportunity name").fill("Renewal proposal");
+  await dialog.getByLabel("Expected close date").fill("2026-12-30");
+  await dialog.getByLabel("Stage",{exact:true}).selectOption("FOLLOW_UP");
+  await dialog.getByLabel("Deal value").fill("50000.00");
+  await dialog.getByLabel("Currency code").fill("INR");
+  await dialog.getByLabel("Next step").fill("Review commercial offer");
+  await dialog.getByRole("button",{name:"Create opportunity"}).click();
+  await expect(dialog).toHaveCount(0);
+  const row=page.locator(".cw-opportunities li").filter({has:page.getByRole("link",{name:"Renewal proposal"})});
+  await expect(row).toContainText("INR 50000.00");
+  await expect(row).toContainText("Review commercial offer");
+  await row.getByRole("button",{name:"Edit",exact:true}).click();
+  const editor=page.getByRole("dialog",{name:"Edit opportunity"});
+  await editor.getByLabel("Next step").fill("Finalize proposal");
+  await editor.getByRole("button",{name:"Save changes"}).click();
+  await expect(editor).toHaveCount(0);
+  await expect(row).toContainText("Finalize proposal");
+});
+
+test("due filters and current-page contact navigation support daily prospect work",async({page})=>{
+  await page.clock.setFixedTime(new Date("2026-11-28T12:00:00Z"));
+  await page.goto(url);
+  const history=page.getByRole("region",{name:"Activity history"});
+  await expect(history.locator(".cw-upcoming .cw-deadline[data-deadline=overdue]")).toHaveCount(1);
+  await history.getByRole("button",{name:"Filter",exact:true}).click();
+  await history.locator(".cw-filter-option").filter({hasText:"Overdue"}).click();
+  await expect(history.locator(".cw-timeline-item")).toHaveCount(1);
+  await expect(history.getByRole("heading",{name:"Prepare technical proposal"})).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button",{name:"Next contact",exact:true}).click();
+  await expect(page.getByRole("heading",{name:"Neel Shah"})).toBeVisible();
+  await page.getByRole("button",{name:"Previous contact",exact:true}).click();
+  await expect(page.getByRole("heading",{name:/Priya Anjali Kapoor/})).toBeVisible();
 });

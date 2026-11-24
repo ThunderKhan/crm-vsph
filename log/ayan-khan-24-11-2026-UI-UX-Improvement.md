@@ -271,3 +271,7 @@ Add nullable per-call outcome using existing enum and transactional linked task 
 ## 31. BDE milestone 3: commercial workspace
 
 Linked opportunities use actual persisted stage enum, explicit nullable value/currency/next step, owner, close date, deep link and compact create/edit dialogs. Scoped endpoints validate contact/tenant and opportunity permissions; no reassignment or arbitrary payload spreads. Contact detail includes opportunities only with VIEW permission. Relationship stage is separate, optional and explicitly selected; existing records remain unset. No sales-stage inference. Manual communication channels grouped into Communications tab to protect density. Additive database migration not deployed.
+
+## 32. BDE workflow integration hardening
+
+Add current-loaded-list previous/next navigation with draft-loss guard (no cross-page claims), latest logged communication excluding internal notes, visible DNC caution, server-returned task assignee, tenant-scoped opportunity account verification, explicit platform assignee requirement, narrow-screen control fixes, and browser regressions for all three milestones. Preserve actual BDE permission policy: employees may create work for themselves and update own work state, not arbitrary assignment/deadline changes. No automated outreach, fake delivery, meeting calendar integration or implied successful contact. Full DB/browser validation remains a release gate.

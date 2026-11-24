@@ -113,3 +113,13 @@ test("action queue sorts due work and separates completed tasks, without duplica
   assert.equal(activityHistory(calls,tasks,"all",{query:"annual budget"})[0].record.call_id,"call");
   assert.equal(activityHistory(calls,tasks,"all",{mine:true,userId:"missing"}).length,0);
 });
+
+test("manual communication search and latest interaction exclude internal notes",()=>{
+  const entries=[
+    {entry_kind:"NOTE",entry_id:"n",entry_subject:"Note",entry_description:"Budget confirmed",entry_occurred_at:"2026-11-25T12:00:00Z"},
+    {entry_kind:"EMAIL",entry_id:"e",entry_subject:"Email",entry_description:"Budget confirmed",entry_occurred_at:"2026-11-24T12:00:00Z"}
+  ];
+  assert.deepEqual(activityHistory([],[],"communication",{entries,query:"budget"}).map(item=>item.record.entry_id),["e"]);
+  assert.deepEqual(activityHistory([],[],"note",{entries}).map(item=>item.record.entry_id),["n"]);
+  assert.deepEqual(contactActivitySummary([],[],Date.now(),entries).lastInteraction,{kind:"email",date:"2026-11-24T12:00:00Z"});
+});

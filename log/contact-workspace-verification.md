@@ -137,3 +137,7 @@ Apply migration only to disposable database first, generate Prisma, run backend 
 ### BDE milestone 3
 
 Apply both additive migrations in disposable database, generate Prisma and run backend tests. Verify permissions and tenant isolation for opportunity create/edit/read and relationship edit, nullable value/currency, valid stage, explicit unset relationship, mobile dialog/focus and link. Do not deploy migration to production until review and database validation. Browser and full build pending.
+
+### BDE workflow final verification
+
+New browser regressions cover call + follow-up, notes and email, relationship, opportunity creation/edit, due filters and current-list navigation. Prior tests updated for intentional behavior changes, including neutral pending status, open work no longer appearing under historical dates, richer search and explicit admin assignee. Run all Node suites, native Prisma generate/validate, backend tests, disposable MySQL migrations and real browser suite; verify BDE employee role end-to-end and error/race paths. Do not claim production-ready without these gates.
