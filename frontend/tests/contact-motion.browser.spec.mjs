@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-const url = "http://localhost:5173/dev/contact-preview";
+const url = "/dev/contact-preview";
 test("selection, clipboard, composer validation, persistence and rapid switches",async({page,context})=>{
   await context.grantPermissions(["clipboard-read","clipboard-write"]);
   await page.goto(url);
