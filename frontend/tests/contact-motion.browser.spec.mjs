@@ -265,7 +265,7 @@ test("activity creation preserves filters and drafts and supports task and email
   await openActivity(page,"Compose email");
   await expect(page.getByLabel("Recipient")).toHaveValue("priya.kapoor@meridian.example.com");
   await page.getByLabel("Subject",{exact:true}).fill("Email draft");
-  await expect(page.getByText("Opens your mail client. CRM does not send or track this email.")).toBeVisible();
+  await expect(page.getByText("Sends email through CRM. Sending does not create a timeline entry.")).toBeVisible();
   await cancelActivity(page);
   await openActivity(page,"Create task");
   await expect(page.getByLabel("Description")).toHaveValue("Retained notes");
@@ -540,4 +540,20 @@ test("router navigation protects retained drafts from prospect and module naviga
   page.once("dialog",dialog=>dialog.accept());
   await page.getByRole("button",{name:"Minimal contact",exact:true}).click();
   await expect(page.getByRole("heading",{name:/Neel Shah/})).toBeVisible();
+});
+
+test("CRM email template preview and simulated send retain drafts on failure",async({page})=>{
+  await page.goto(url);
+  await page.getByRole("button",{name:"Fail next write",exact:true}).click();
+  await openActivity(page,"Compose email");
+  const dialog=page.getByRole("dialog",{name:"Compose email"});
+  await dialog.getByRole("combobox",{name:"Email template",exact:true}).selectOption("preview-template");
+  await expect(dialog.getByLabel("Subject",{exact:true})).toHaveValue("Hello Priya");
+  await expect(dialog.getByLabel("Message",{exact:true})).toHaveValue("Thank you, Priya.");
+  await dialog.getByRole("button",{name:"Send email",exact:true}).click();
+  await expect(dialog.getByRole("alert")).toContainText("Simulated preview failure");
+  await expect(dialog.getByLabel("Subject",{exact:true})).toHaveValue("Hello Priya");
+  await dialog.getByRole("button",{name:"Send email",exact:true}).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByText("Email sent.",{exact:true})).toBeVisible();
 });

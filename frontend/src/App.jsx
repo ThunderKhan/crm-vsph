@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Contacts from './pages/Contacts'
 import Accounts from './pages/Accounts'
+import EmailTemplates from './pages/EmailTemplates'
 import Opportunities from './pages/Opportunities'
 import Projects from './pages/Projects'
 import Campaigns from './pages/Campaigns'
@@ -56,6 +57,7 @@ const App = () => {
         <Route path="/v2/dashboard" element={<DashboardV2 />} />
         <Route path="/v2/profile" element={<ProfileV2 />} />
         <Route path="/v2/contacts" element={<ModuleGuard code="CONTACTS"><Contacts /></ModuleGuard>} />
+        <Route path="/v2/email-templates" element={<ModuleGuard code="CONTACTS"><EmailTemplates /></ModuleGuard>} />
         <Route path="/v2/accounts" element={<ModuleGuard code="ACCOUNTS"><Accounts /></ModuleGuard>} />
         <Route path="/v2/opportunities" element={<ModuleGuard code="OPPORTUNITIES"><Opportunities /></ModuleGuard>} />
         <Route path="/v2/projects" element={<ModuleGuard code="PROJECTS"><Projects /></ModuleGuard>} />

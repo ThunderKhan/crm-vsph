@@ -214,8 +214,10 @@ Terminal 1 — backend:
 
 ```bash
 cd backend
-npm run dev     # http://localhost:5000 (should log "CRM API Running" at /)
+npm run dev     # generates the Prisma client, then http://localhost:5000 (should log "CRM API Running" at /)
 ```
+
+> `npm run dev` runs `prisma generate` first, so a fresh `npm install` / `npm ci` works without a manual generate step.
 
 Terminal 2 — frontend:
 
@@ -251,6 +253,9 @@ npx vite build
 | `INVITATION_BASE_URL` | Frontend base used to build invitation links |
 | `INVITATION_TTL_HOURS` | Invitation lifetime (default `72`) |
 | `ENFORCE_ENTITLEMENT` | Set `false` only for local development; defaults to enforced |
+| `RESEND_API_KEY` | Resend API key used for invitations and employee-sent contact emails |
+| `EMAIL_FROM` | Sender for system emails (invitations) |
+| `EMAIL_SENDER_DOMAINS` | Comma-separated domains employees may send from (for example `vsph.in`). Defaults to the `EMAIL_FROM` domain. The domain must be verified in Resend. |
 | `EMAIL_WEBHOOK_URL` | Optional email provider webhook used for invitations |
 | `VITE_CENTRAL_PLATFORM_URL` | Frontend link to `apps.vsph.in` (defaults to `https://apps.vsph.in`) |
 
@@ -288,6 +293,11 @@ Full contract: [`docs/INTEGRATION_CONTRACT.md`](docs/INTEGRATION_CONTRACT.md).
 | POST | `/api/organization/employees/invite` | Invite an employee (`email`, `name`, `role`, `department`) |
 | POST | `/api/organization/employees/:userId/resend-invite` | Reissue a pending invitation |
 | PATCH | `/api/organization/employees/:userId` | Update name/role/department/status in the caller's organization |
+
+### Emails (any user with Contacts access)
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/emails/send` | Send `{ to, subject, body }` from the signed-in employee's own address. The address domain must be listed in `EMAIL_SENDER_DOMAINS` and verified in Resend. |
 
 ### Tenants (superadmin only, internal support)
 | Method | Route | Description |
@@ -378,11 +388,13 @@ The UI follows the VSPH brand (`frontend/DESIGN.md`):
 
 - **Passwords** — scrypt hashes. Existing plaintext rows are rehashed on their first successful login.
 - **Sessions** — HMAC-signed bearer tokens in localStorage (12 hours by default). `AUTH_TOKEN_SECRET` must be at least 32 characters and is required when `NODE_ENV=production`; a missing or short secret stops the server at startup. Outside production a random per-process secret is used, so sessions end on restart. A move to httpOnly cookies needs a same-site deployment decision, since the SPA and API are currently cross-origin.
-- **Invitation email** — no provider is installed. Development prints the invitation URL / returns it in the API response. Set `EMAIL_WEBHOOK_URL` before production; tokens are never logged or returned in production.
+- **Invitation email** — Resend when `RESEND_API_KEY` is set. Development prints the invitation URL / returns it in the API response; tokens are never logged or returned in production.
+- **Employee-sent email** — contacts are emailed from the signed-in employee's address. Resend can only send from a verified domain, so list that domain in `EMAIL_SENDER_DOMAINS`; individual Gmail/Outlook addresses cannot be used as the sender.
 - **Integration is CRM-side complete, end-to-end pending** — the contract is implemented and tested locally. `apps.vsph.in` must supply its base URL, HMAC secret and final field names before end-to-end can be claimed.
 - **Entitlement fail-closed** — client access is blocked when no entitlement record exists. Run `npm run backfill:onboarding` after migrating existing data.
 - **Supabase later** — the multi-tenant model is database-agnostic, but switching to Supabase/PostgreSQL requires a new Prisma provider/adapter and schema re-push.
 - **Migrations** — use `npx prisma db push`, not `prisma migrate` (shipped migrations are out of sync).
+- **`Named export 'Status' not found`** — the Prisma client has not been generated yet. Run `npx prisma generate` (or just `npm run dev`, which generates it first). Prisma 7 no longer generates the client on install.
 - **Tenant deletion** — intentionally blocked (409) when users or CRM data exist, to prevent FK errors / data loss.
 - **Test data** — the local DB may contain extra test clients (e.g. "Test Client", "Test Client Corp", "Acme Corp"); remove them in the Clients page if you want a clean slate.
 ```

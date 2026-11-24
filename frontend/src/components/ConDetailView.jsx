@@ -16,7 +16,7 @@ import { ActivityComposerDialog } from "./contact/ActivityComposerDialog";
 import { ContactTaskEditor, TaskStatusControl } from "./contact/ContactTaskEditor";
 import { useDialogExit } from "./contact/useDialogExit";
 import { activityKey, requiredActivityFields, nextTaskCompletion, completionActor, allowedTaskStatuses, canManageTaskDetails, canRescheduleTask, menuFocusIndex } from "./contact/contactMotionUtils.js";
-import { activityHistory, groupActivityByDate, activityTime, contactName, emailLink, usableEmail, formatDate, humanize, taskDueDate, taskDeadline, splitActivity, contactActivitySummary } from "./contact/contactWorkspaceUtils.js";
+import { activityHistory, groupActivityByDate, activityTime, contactName, usableEmail, formatDate, humanize, taskDueDate, taskDeadline, splitActivity, contactActivitySummary } from "./contact/contactWorkspaceUtils.js";
 import "./contact/contactWorkspace.css";
 
 const errorMessage = (response, fallback) => response?.message || response?.error || fallback;
@@ -24,7 +24,7 @@ const blankTask = { subject:"", description:"", priority:"NORMAL", date:"", time
 const blankCall = { subject:"", description:"", outcome:"", markDnc:false, followup:false, followupSubject:"", followupDate:"", followupTime:"12:00", assignee:"" };
 const blankEntry={subject:"",description:"",occurred:""};
 const entryModes={note:"NOTE", "email-log":"EMAIL", meeting:"MEETING", linkedin:"LINKEDIN"};
-const blankEmail = { subject:"", body:"", recipient:"" };
+const blankEmail = { subject:"", body:"", recipient:"", templateId:"" };
 
 function MoreActions({ canEdit, canDelete, onCampaign, onDelete, code }) {
   const [open, setOpen] = useState(false);
@@ -268,6 +268,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged, n
     setSearchParams(previous=>{const next=new URLSearchParams(previous);if(value==="opportunities")next.set("contact_view","opportunities");else next.delete("contact_view");return next;},{replace:true,preventScrollReset:true});
   }
   const [call,setCall] = useState(blankCall), [task,setTask] = useState(blankTask), [email,setEmail] = useState(blankEmail);
+  const [emailTemplates,setEmailTemplates]=useState([]), [templateError,setTemplateError]=useState("");
   const [fieldErrors,setFieldErrors]=useState({});
   const [savedMode,setSavedMode] = useState(null), [newActivity,setNewActivity] = useState(null), [lastCreated,setLastCreated]=useState(null);
   const savedActivity=useRef(null);
@@ -280,6 +281,12 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged, n
   const editSaved=useRef(false), dialogOpener=useRef(null);
   const composerId = useId(), composer = useRef(null), saveLock = useRef(false), deleteLock = useRef(false);
   const canEdit = canDoAction("CONTACTS","EDIT"), canDelete = canDoAction("CONTACTS","DELETE"), canCall = canDoAction("CONTACTS","CREATE");
+  useEffect(()=>{
+    if(mode!=="email")return;
+    let active=true;
+    api.get("/api/email-templates").then(result=>{if(!result.success||!Array.isArray(result.data))throw new Error("Could not load templates.");if(active){setEmailTemplates(result.data);setTemplateError("");}}).catch(error=>{if(active)setTemplateError(error.message||"Could not load templates.");});
+    return ()=>{active=false;};
+  },[mode]);
   const canAssignCampaign = canEdit && hasModule("CAMPAIGNS") && canDoAction("CAMPAIGNS","VIEW");
   const canViewTasks = hasModule("TASKS") && canDoAction("TASKS","VIEW");
   const canTask = hasModule("TASKS") && canDoAction("TASKS","CREATE");
@@ -361,7 +368,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged, n
     if(mode==="email")setFeedback("");
     setMode(null);setFieldErrors({});setSavedMode(null);setSaveError("");
   }
-  const dirty=Boolean(call.subject||call.description||call.outcome||call.markDnc||call.followup||call.followupSubject||call.followupDate||call.followupTime!=="12:00"||call.assignee||task.subject||task.description||task.date||task.assignee||task.priority!=="NORMAL"||task.time!=="12:00"||email.subject||email.body||email.recipient||Object.values(entryDrafts).some(draft=>draft.subject||draft.description||draft.occurred));
+  const dirty=Boolean(call.subject||call.description||call.outcome||call.markDnc||call.followup||call.followupSubject||call.followupDate||call.followupTime!=="12:00"||call.assignee||task.subject||task.description||task.date||task.assignee||task.priority!=="NORMAL"||task.time!=="12:00"||email.subject||email.body||email.recipient||email.templateId||Object.values(entryDrafts).some(draft=>draft.subject||draft.description||draft.occurred));
   const dialogOpen=Boolean(mode||taskEditing||opportunityEditing||relationshipEditing||edit||deleting||entryCorrection);
   const saving=Boolean(pending||deletePending||Object.values(taskWrites).some(Boolean));
   const blocker=useBlocker(({currentLocation,nextLocation})=>{
@@ -414,11 +421,20 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged, n
     if (saveLock.current || pending || savedMode || !mode || (mode !== "email" && historyLoading)) return;
     setSavedMode(null); setSaveError(""); setFeedback("");
     if (mode === "email") {
+      if(!canCall)return;
       const available = [contact.contact_professional_email,contact.contact_personal_email].filter(usableEmail);
-      const recipient = available.includes(email.recipient) ? email.recipient : available[0];
-      const href = emailLink(recipient,email.subject,email.body);
-      if (!href) { setSaveError("This contact does not have a usable email address."); return; }
-      window.location.href = href; setFeedback("Email draft requested in your mail client. No email has been sent by CRM."); return;
+      const recipient=available.includes(email.recipient)?email.recipient:available[0];
+      if(!recipient){setSaveError("This contact does not have a usable email address.");return;}
+      if(!email.templateId&&(!email.subject.trim()||!email.body.trim())){setSaveError("Enter a subject and message.");return;}
+      if(email.templateId&&!emailTemplates.some(t=>t.email_template_id===email.templateId)){setSaveError("Choose an available email template.");return;}
+      saveLock.current=true;setPending(mode);
+      try{
+        const vars=emailVariables(recipient);
+        const result=await api.post("/api/emails/send",email.templateId?{to:recipient,template_id:email.templateId,template_vars:vars}:{to:recipient,subject:email.subject.trim(),body:email.body});
+        if(!result.success)throw new Error(errorMessage(result,"Could not send email."));
+        setEmail(blankEmail);setSavedMode(mode);toast.success("Email sent.");
+      }catch(error){setSaveError(error.message||"Could not send email.");}finally{saveLock.current=false;setPending(null);}
+      return;
     }
     if (entryModes[mode]) {
       if(!canCall)return;
@@ -471,7 +487,11 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged, n
   if (!isOpen) return null;
   const name=contactName(contact), initials=[contact?.contact_firstname,contact?.contact_lastname].filter(Boolean).map(v=>v[0].toUpperCase()).join("") || "C";
   const recipients=[...new Set([contact?.contact_professional_email,contact?.contact_personal_email].filter(usableEmail))];
-  const actions=[...(canCall ? [{id:"call",label:"Log a call"}] : []),...(canTask ? [{id:"task",label:"Create task"}] : []),{id:"email",label:"Compose email"},...(canCall?[{id:"note",label:"Add note"},{id:"email-log",label:"Log email"},{id:"meeting",label:"Log meeting"},{id:"linkedin",label:"Log LinkedIn interaction"}]:[])];
+  function emailVariables(recipient){return {contact_firstname:contact?.contact_firstname||"",contact_lastname:contact?.contact_lastname||"",contact_name:contactName(contact),contact_email:recipient||"",employee_name:currentUserName,employee_email:readSessionValue("vsph_user_email")||"",company_name:contact?.tenant?.tenant_name||"VSPH CRM",company_tagline:"Innovation. Technology. People.",company_website:"vsph.in",current_date:new Date(now).toLocaleDateString(),to:recipient||""};}
+  function selectTemplate(id){setEmail(prev=>({...prev,templateId:id}));}
+  const selectedTemplate=emailTemplates.find(t=>t.email_template_id===email.templateId);
+  const interpolate=(value)=>String(value||"").replace(/\{\{(\w+)\}\}/g,(_,key)=>emailVariables(recipients.includes(email.recipient)?email.recipient:recipients[0])[key]??"");
+  const actions=[...(canCall ? [{id:"call",label:"Log a call"}] : []),...(canTask ? [{id:"task",label:"Create task"}] : []),...(canCall?[{id:"email",label:"Compose email"}]:[]),...(canCall?[{id:"note",label:"Add note"},{id:"email-log",label:"Log email"},{id:"meeting",label:"Log meeting"},{id:"linkedin",label:"Log LinkedIn interaction"}]:[])];
   return <div className="cw-workspace">
     <nav className="cw-breadcrumb" aria-label="Breadcrumb"><button type="button" className="cw-back" onClick={closeWorkspace} disabled={!!pending||Object.values(taskWrites).some(Boolean)}><ArrowLeft size={16}/> Contacts</button>{neighbors&&<div className="cw-record-navigation"><button type="button" className="cw-icon" aria-label="Previous contact" disabled={!neighbors.previous||!!pending||deletePending||Object.values(taskWrites).some(Boolean)} onClick={()=>navigateContact(neighbors.previous)}><ChevronLeft size={18} aria-hidden="true"/></button><span className="cw-muted" aria-label="Position on current list page">{neighbors.position} / {neighbors.total}</span><button type="button" className="cw-icon" aria-label="Next contact" disabled={!neighbors.next||!!pending||deletePending||Object.values(taskWrites).some(Boolean)} onClick={()=>navigateContact(neighbors.next)}><ChevronRight size={18} aria-hidden="true"/></button></div>}</nav>
     {loading ? <ContactSkeleton view={tab}/> : !contact ? <div className="cw-panel cw-empty"><h2>Contact unavailable</h2><p role="alert">{loadError || "Contact not found."}</p><button type="button" className="cw-button" onClick={()=>{setLoading(true);setRevision(v=>v+1);}}>Retry</button></div> : <>
@@ -499,7 +519,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged, n
       {entryCorrection&&<EntryCorrectionDialog record={entryCorrection.record} remove={entryCorrection.remove} endpoint={endpoint} onClose={()=>setEntryCorrection(null)} onSaved={record=>setEntries(prev=>record?prev.map(x=>x.entry_id===record.entry_id?record:x):prev.filter(x=>x.entry_id!==entryCorrection.record.entry_id))}/>}
       {opportunityEditing&&<OpportunityEditor record={opportunityEditing.record} endpoint={endpoint} onClose={()=>setOpportunityEditing(null)} onSaved={record=>setContact(prev=>({...prev,opportunities:[record,...(prev.opportunities||[]).filter(o=>o.opportunity_id!==record.opportunity_id)]}))}/>}
       {relationshipEditing&&<RelationshipEditor value={contact.contact_relationship_stage} endpoint={endpoint} onClose={()=>setRelationshipEditing(false)} onSaved={stage=>setContact(prev=>({...prev,contact_relationship_stage:stage}))}/>}
-      {mode&&<ActivityComposerDialog key={mode} title={actions.find(a=>a.id===mode)?.label} mode={mode} formId={composerId} pending={!!pending} saved={!!savedMode} submitLabel={mode==="call"&&call.followup?"Save call and follow-up":entryModes[mode]?"Save activity":undefined} disabled={(mode!=="email"&&historyLoading)||(mode==="email"&&!recipients.length)} onClose={finishComposer}>
+      {mode&&<ActivityComposerDialog key={mode} title={actions.find(a=>a.id===mode)?.label} mode={mode} formId={composerId} pending={!!pending} saved={!!savedMode} submitLabel={mode==="call"&&call.followup?"Save call and follow-up":entryModes[mode]?"Save activity":mode==="email"?"Send email":undefined} disabled={(mode!=="email"&&historyLoading)||(mode==="email"&&!recipients.length)} onClose={finishComposer}>
         <form ref={composer} id={composerId} onSubmit={submit} noValidate className="cw-form cw-activity-form" aria-busy={!!pending}>
                 <fieldset key={mode} disabled={!!pending||!!savedMode} className="cw-form-fields">
                 {mode==="call" ? <>
@@ -513,10 +533,13 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged, n
                   <div className="cw-date-row"><label>Due date<input type="date" value={task.date} onChange={e=>setTask({...task,date:e.target.value})}/></label><label>Due time<input type="time" value={task.time} onChange={e=>setTask({...task,time:e.target.value})} disabled={!task.date}/></label></div>
                   <label>Description<textarea rows={3} value={task.description} onChange={e=>setTask({...task,description:e.target.value})} placeholder="What needs to be done?"/></label>
                 </> : entryModes[mode] ? <EntryFields draft={entryDrafts[mode]||blankEntry} onChange={draft=>setEntryDrafts(prev=>({...prev,[mode]:draft}))} kind={entryModes[mode]}/> : <>
-                  <label>Recipient<select value={recipients.includes(email.recipient) ? email.recipient : recipients[0] || ""} onChange={e=>setEmail({...email,recipient:e.target.value})}>{recipients.length ? recipients.map(address=><option key={address}>{address}</option>) : <option value="">No usable email address</option>}</select></label>
-                  <label>Subject<input value={email.subject} onChange={e=>setEmail({...email,subject:e.target.value})} placeholder="Email subject"/></label>
-                  <label>Message<textarea rows={5} value={email.body} onChange={e=>setEmail({...email,body:e.target.value})} placeholder="Write your email…"/></label>
-                  <p className="cw-muted">Opens your mail client. CRM does not send or track this email.</p>
+                  <label>Recipient<select aria-label="Recipient" value={recipients.includes(email.recipient) ? email.recipient : recipients[0] || ""} onChange={e=>setEmail({...email,recipient:e.target.value})}>{recipients.length ? recipients.map(address=><option key={address}>{address}</option>) : <option value="">No usable email address</option>}</select></label>
+                  <label>Email template<select aria-label="Email template" value={email.templateId} onChange={e=>selectTemplate(e.target.value)}><option value="">Write a message</option>{emailTemplates.map(t=><option key={t.email_template_id} value={t.email_template_id}>{t.name}</option>)}</select></label>
+                  {templateError&&<p className="cw-muted" role="status">{templateError} You can still write a message.</p>}
+                  <label>Subject<input value={selectedTemplate?interpolate(selectedTemplate.subject):email.subject} readOnly={!!selectedTemplate} onChange={e=>setEmail({...email,subject:e.target.value})} placeholder="Email subject"/></label>
+                  <label>Message<textarea rows={5} value={selectedTemplate?interpolate(selectedTemplate.body_text||selectedTemplate.body_html):email.body} readOnly={!!selectedTemplate} onChange={e=>setEmail({...email,body:e.target.value})} placeholder="Write your email…"/></label>
+                  {selectedTemplate&&<p className="cw-muted">Template preview. CRM sends the saved template; choose Write a message for custom text.</p>}
+                  <p className="cw-muted">Sends email through CRM. Sending does not create a timeline entry.</p>
                 </>}
                 </fieldset>
           {saveError&&<p role="alert" className="cw-error">{saveError}</p>}

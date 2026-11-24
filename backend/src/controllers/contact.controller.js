@@ -21,9 +21,9 @@ export const getContacts = async (req, res) => {
             { contact_professional_email: { contains: search } },
             { account: { account_name: { contains: search } } },
           ],
-          ...getTenantFilter(req),
+          ...getTenantFilter(req, "contact_user_fk"),
         }
-      : { contact_deleted_at: null, ...getTenantFilter(req) };
+      : { contact_deleted_at: null, ...getTenantFilter(req, "contact_user_fk") };
 
     // Fetch data and count in parallel
     const [contacts, total] = await Promise.all([
@@ -201,6 +201,7 @@ export const createContact = async (req, res) => {
         contact_project_fk: contact_project_fk || null,
         contact_campaign_fk: contact_campaign_fk || null,
         contact_owner_fk: resolvedOwnerId,
+        contact_user_fk: req.user.id,
 
         contact_call_status: contact_call_status || null,
         contact_email_status: contact_email_status || null,

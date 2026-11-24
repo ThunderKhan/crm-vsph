@@ -21,6 +21,8 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -31,9 +33,16 @@ jobs:
       - run: npm run build
       - run: npm run lint:contact
         if: always()
-      - name: Full repository lint (includes legacy debt)
-        run: npm run lint
+      - name: Full repository lint regression gate (legacy findings reported)
         if: always()
+        run: |
+          baseline_dir="$(mktemp -d)"
+          git worktree add --detach "$baseline_dir" f6f88fb58197e9896c9dde910d9bf42dd3b58f36
+          trap 'git worktree remove --force "$baseline_dir"' EXIT
+          ln -s "$PWD/node_modules" "$baseline_dir/frontend/node_modules"
+          (cd "$baseline_dir/frontend"; ./node_modules/.bin/eslint . --format json --output-file "$RUNNER_TEMP/legacy-lint.json") || test "$?" -eq 1
+          ./node_modules/.bin/eslint . --format json --output-file "$RUNNER_TEMP/current-lint.json" || test "$?" -eq 1
+          node scripts/checkLintRegression.mjs "$RUNNER_TEMP/legacy-lint.json" "$RUNNER_TEMP/current-lint.json"
       - name: Install isolated browser test runner
         if: always()
         run: npm install --no-save --package-lock=false @playwright/test@1.56.1 && npx playwright install --with-deps chromium

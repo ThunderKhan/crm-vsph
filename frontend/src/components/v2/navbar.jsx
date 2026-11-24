@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { name: 'Projects', path: '/v2/projects', module: 'PROJECTS' },
   { name: 'Campaigns', path: '/v2/campaigns', module: 'CAMPAIGNS' },
   { name: 'Tasks', path: '/v2/tasks', module: 'TASKS' },
+  { name: 'Email Templates', path: '/v2/email-templates', module: 'CONTACTS' },
 ];
 
 const ROUTES = {

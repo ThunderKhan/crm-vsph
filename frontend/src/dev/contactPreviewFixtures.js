@@ -136,6 +136,7 @@ export function createContactPreviewStore({ now = () => new Date().toISOString()
     const task = taskRoute ? tasks.find(t=>t.task_id===decodeURIComponent(taskRoute[1])) : null;
     if (method!=="GET" && failNext) { failNext=false; return fail("Simulated preview failure. Your data was not changed."); }
     if (method==="GET") {
+      if(path==="/api/email-templates")return ok([{email_template_id:"preview-template",name:"Follow-up",subject:"Hello {{contact_firstname}}",body_text:"Thank you, {{contact_firstname}}.",body_html:"<p>Thank you, {{contact_firstname}}.</p>"}]);
       if(entryRoute)return entryContact?paginate(entries.filter(e=>e.contact_fk===entryContact.contact_id&&!e.entry_deleted_at),params):fail("Contact not found");
       if (path==="/api/contacts") return paginate(contacts.filter(c=>matches(c,query)),params);
       if (contactRoute) return contact ? ok(contact) : fail("Contact not found");
@@ -148,6 +149,7 @@ export function createContactPreviewStore({ now = () => new Date().toISOString()
       if (path==="/api/projects") return paginate([project],params);
       if (path==="/api/search") return contacts.filter(c=>matches(c,query)).map(c=>({type:"contact",id:c.contact_id,title:[c.contact_firstname,c.contact_lastname].filter(Boolean).join(" "),subtitle:c.account?.account_name||c.contact_code}));
     }
+    if(method==="POST"&&path==="/api/emails/send"){if(!payload.to||(!payload.template_id&&(!payload.subject?.trim()||!payload.body?.trim())))return fail("Invalid email.");return {success:true,message:"Simulated email sent; no external request."};}
     if (method==="POST" && path==="/api/contacts") {
       if (!String(payload.contact_firstname||"").trim()||!String(payload.contact_lastname||"").trim()) return fail("First and last name are required.");
       const record = {...materialize(payload),contact_id:id("contact"),contact_code:"CON-PREVIEW-"+String(serial).padStart(3,"0")};

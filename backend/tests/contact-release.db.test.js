@@ -78,11 +78,16 @@ test("contact release: authorization, atomic follow-ups, DNC, corrections and co
     assert.equal(stored.tenant_fk,a.tenant_id);
     assert.equal(stored.opportunity_next_step,"Review quote");
     assert.equal((await request(restricted,"GET",endpoint)).body.data.opportunities,undefined);
+    const template=await request(admin,"POST","/api/email-templates",{name:"Release template",subject:"Hello {{contact_firstname}}",body_html:"<p>Test</p>"});
+    assert.equal(template.status,201,JSON.stringify(template.body));
+    assert.equal((await request(employee,"GET","/api/email-templates")).body.data.some(x=>x.email_template_id===template.body.data.email_template_id),true);
+    assert.equal((await request(restricted,"POST","/api/emails/send",{to:"invalid"})).status,403);
+    assert.equal((await request(other,"GET","/api/email-templates/"+template.body.data.email_template_id)).status!==200,true);
   }finally{
     if(server)await new Promise(resolve=>server.close(resolve));
     // The database is disposable; explicitly remove just our own fixtures.
     const where={tenant_fk:{in:tenants}};
-    for(const model of ["task_update","task","contact_activity_entry","call","opportunity","contact","organization_app_entitlement","user"])await prisma[model].deleteMany({where});
+    for(const model of ["task_update","task","contact_activity_entry","call","opportunity","contact","email_template","organization_app_entitlement","user"])await prisma[model].deleteMany({where});
     await prisma.tenant.deleteMany({where:{tenant_id:{in:tenants}}});
     await prisma.$disconnect();
   }

@@ -3,6 +3,7 @@ import { CLIENT_ROLES } from "../lib/onboarding.logic.js";
 import { hashPassword } from "../lib/passwords.js";
 import { upsertCrmEntitlement } from "../services/entitlement.service.js";
 import { sendInvitationEmail } from "../services/email.service.js";
+import { emailTemplates } from "../lib/email-templates.js";
 
 const tenantInclude = {
   tenant_entitlements: {
@@ -98,6 +99,18 @@ export const createTenant = async (req, res) => {
         { tenantFk: row.tenant_id, status: "ACTIVE" },
         tx
       );
+      // Seed default email templates for the new tenant.
+      await tx.email_template.createMany({
+        data: emailTemplates.map((t) => {
+          const { html, text, ...rest } = t;
+          return {
+            ...rest,
+            body_html: html,
+            body_text: text,
+            tenant_fk: row.tenant_id,
+          };
+        }),
+      });
       return row;
     });
 

@@ -35,7 +35,7 @@ export const getAccounts = async (req, res) => {
 
     const where = {
       account_deleted_at: null,
-      ...getTenantFilter(req),
+      ...getTenantFilter(req, "account_owner_fk"),
     };
 
     if (search) {

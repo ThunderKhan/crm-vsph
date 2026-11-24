@@ -1,4 +1,64 @@
 /**
+ * Senders may only send as their own address when that address is on a domain
+ * verified in Resend. EMAIL_SENDER_DOMAINS defaults to the EMAIL_FROM domain.
+ */
+export const senderBlockedReason = (email) => {
+  const sender = String(email || "").trim().toLowerCase();
+  const domain = sender.split("@")[1];
+  if (!domain) return "Your account has no email address.";
+
+  const domains = (process.env.EMAIL_SENDER_DOMAINS || process.env.EMAIL_FROM || "onboarding@resend.dev")
+    .split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean)
+    .map((entry) => (entry.includes("@") ? entry.split("@")[1] : entry));
+
+  if (!domains.includes(domain)) {
+    return `Your email domain (${domain}) is not verified for sending in Resend. Ask an administrator to verify it.`;
+  }
+
+  // resend.dev is shared: Resend only accepts its own demo address.
+  if (domain === "resend.dev" && sender !== String(process.env.EMAIL_FROM || "").toLowerCase()) {
+    return "The shared resend.dev sender cannot send as your address. Verify your organization's domain in Resend first.";
+  }
+
+  return null;
+};
+
+export const sendMail = async ({ from, to, subject, text, html, replyTo }) => {
+  if (!process.env.RESEND_API_KEY) {
+    const error = new Error("Email sending is not configured. Set RESEND_API_KEY.");
+    error.status = 503;
+    throw error;
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject,
+      text,
+      ...(html ? { html } : {}),
+      ...(replyTo ? { reply_to: replyTo } : {}),
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    const error = new Error(`Email provider rejected the message (${response.status}): ${detail}`);
+    error.status = 502;
+    throw error;
+  }
+
+  return { delivered: true, transport: "resend" };
+};
+
+/**
  * Email adapter for invitation delivery.
  * - If RESEND_API_KEY is configured, sends via Resend API.
  * - Else if EMAIL_WEBHOOK_URL is configured, POSTs the message there.
