@@ -20,8 +20,6 @@ const footer = () => `
       <p style="margin:0 0 8px 0;font-size:16px;font-weight:700;color:#ffffff;">VSPH</p>
       <p style="margin:0 0 6px 0;font-size:13px;color:#94a3b8;">${COMPANY_TAGLINE}</p>
       <p style="margin:0 0 6px 0;font-size:13px;color:#94a3b8;"><a href="${COMPANY_WEBSITE}" style="color:#60a5fa;text-decoration:none;">${COMPANY_WEBSITE}</a></p>
-      <p style="margin:0 0 10px 0;font-size:12px;color:#64748b;">${FOOTER_TEXT}</p>
-      <p style="margin:0 0 10px 0;font-size:12px;color:#64748b;"><a href="#" style="color:#64748b;text-decoration:underline;">Unsubscribe</a></p>
       <p style="margin:0;font-size:11px;color:#475569;">&copy; 2026 VSPH. All rights reserved.</p>
     </td>
   </tr>
