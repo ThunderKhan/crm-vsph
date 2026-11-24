@@ -13,7 +13,7 @@ export const getCampaigns = async (req, res) => {
     const take = Math.max(1, Number(limit) || 20);
     const skip = (Math.max(1, Number(page) || 1) - 1) * take;
 
-    const where = { campaign_deleted_at: null, ...getTenantFilter(req) };
+    const where = { campaign_deleted_at: null, ...getTenantFilter(req, "campaign_user_fk") };
     if (search) where.campaign_name = { contains: search };
 
     const [campaigns, totalRecords] = await Promise.all([
