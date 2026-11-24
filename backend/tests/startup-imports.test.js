@@ -12,6 +12,7 @@ test("every controller imports without missing Prisma exports", async () => {
     "campaign",
     "contact",
     "dashboard",
+    "email",
     "integration",
     "invitation",
     "opportunity",

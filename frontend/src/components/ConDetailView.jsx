@@ -16,6 +16,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import Button from "./ui/Button";
+import toast from "react-hot-toast";
 import AddContactModal from "./modals/AddContactModal";
 import AddCampaignModal from "./modals/AddCampaignModal";
 import Breadcrumbs from "./ui/Breadcrumbs";
@@ -52,6 +53,9 @@ const ConDetailView = ({ isOpen, onClose, contactId }) => {
   const [taskDueTimeAMPM, setTaskDueTimeAMPM] = useState("PM");
   const [savingTask, setSavingTask] = useState(false);
   const [tasksList, setTasksList] = useState([]);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   useEffect(() => {
     const userId = localStorage.getItem("vsph_user_id");
@@ -114,6 +118,8 @@ const ConDetailView = ({ isOpen, onClose, contactId }) => {
       setTaskSubject("");
       setTaskDescription("");
       setTaskPriority("NORMAL");
+      setEmailSubject("");
+      setEmailBody("");
     }
   }, [isOpen, contactId]);
 
@@ -203,6 +209,33 @@ const ConDetailView = ({ isOpen, onClose, contactId }) => {
       console.error("Error saving task:", err);
     } finally {
       setSavingTask(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    const to =
+      contactData?.contact_professional_email ||
+      contactData?.contact_personal_email ||
+      "";
+    if (!to) return toast.error("This contact has no email address.");
+    if (!emailSubject.trim()) return toast.error("Add a subject.");
+    if (!emailBody.trim()) return toast.error("Write a message.");
+
+    setSendingEmail(true);
+    try {
+      const res = await api.post("/api/emails/send", {
+        to,
+        subject: emailSubject.trim(),
+        body: emailBody,
+      });
+      if (!res.success) throw new Error(res.message || "Could not send the email.");
+      toast.success(`Email sent to ${to}`);
+      setEmailSubject("");
+      setEmailBody("");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -1055,6 +1088,8 @@ const ConDetailView = ({ isOpen, onClose, contactId }) => {
                             </label>
                             <input
                               type="text"
+                              value={emailSubject}
+                              onChange={(e) => setEmailSubject(e.target.value)}
                               placeholder="Email subject"
                               className="w-full border border-slate-200 rounded px-3 py-2 text-[13px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-400"
                             />
@@ -1065,6 +1100,8 @@ const ConDetailView = ({ isOpen, onClose, contactId }) => {
                               Body
                             </label>
                             <textarea
+                              value={emailBody}
+                              onChange={(e) => setEmailBody(e.target.value)}
                               placeholder="Type your email..."
                               rows={4}
                               className="w-full border border-slate-200 rounded px-3 py-2 text-[13px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-blue-400 resize-none"
@@ -1073,16 +1110,11 @@ const ConDetailView = ({ isOpen, onClose, contactId }) => {
 
                           <Button
                             variant="primary"
-                            onClick={() => {
-                              if (contactData.contact_professional_email) {
-                                window.location.href = `mailto:${contactData.contact_professional_email}`;
-                              } else if (contactData.contact_personal_email) {
-                                window.location.href = `mailto:${contactData.contact_personal_email}`;
-                              }
-                            }}
-                            className="w-full gap-2 font-bold justify-center bg-blue-600 py-2.5"
+                            onClick={handleSendEmail}
+                            disabled={sendingEmail}
+                            className="w-full gap-2 font-bold justify-center bg-blue-600 py-2.5 disabled:opacity-50"
                           >
-                            <Mail size={14} /> Send Email
+                            <Mail size={14} /> {sendingEmail ? "Sending..." : "Send Email"}
                           </Button>
                         </div>
                       </div>

@@ -14,6 +14,7 @@ import tenantRoutes from "./routes/tenant.routes.js";
 import integrationRoutes from "./routes/integration.routes.js";
 import invitationRoutes from "./routes/invitation.routes.js";
 import organizationRoutes from "./routes/organization.routes.js";
+import emailRoutes from "./routes/email.routes.js";
 import activityRoutes from "./routes/activity.routes.js";
 import { authMiddleware, requireModule } from "./middleware/auth.middleware.js";
 import { assertSessionConfigured } from "./lib/session.js";
@@ -57,6 +58,7 @@ app.use("/api/organization", organizationRoutes);
 app.use("/api/users", authMiddleware);
 app.use("/api/accounts", authMiddleware, requireModule("ACCOUNTS"));
 app.use("/api/contacts", authMiddleware, requireModule("CONTACTS"));
+app.use("/api/emails", authMiddleware, requireModule("CONTACTS"));
 app.use("/api/opportunities", authMiddleware, requireModule("OPPORTUNITIES"));
 app.use("/api/projects", authMiddleware, requireModule("PROJECTS"));
 app.use("/api/search", authMiddleware);
@@ -78,6 +80,7 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/campaigns", campaignRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/activity", activityRoutes);
+app.use("/api/emails", emailRoutes);
 
 app.get("/", (req, res) => {
   res.send("CRM API Running");
