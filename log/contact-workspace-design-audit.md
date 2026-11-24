@@ -75,3 +75,17 @@ Follow-up gates: inspect visual hierarchy and alignment; check viewport/zoom/key
 | completed | 5.08:1 | 4.5:1 |
 | blocked | 4.87:1 | 4.5:1 |
 | control border | 3.07:1 | 3:1 |
+
+## Follow-up craft audit after persistent workspace redesign
+
+Baseline: `9596e21ca84c52e87a5a5d083a5d8a166f16f591`. Reopened the same seven skill entry points and Impeccable Operate/polish/audit/craft-floor and Unslop signs references. Apply a light-polish pass, not a replacement. Preserve the approved 32/68 split, 12px card gap, status colors, typography, native dialogs, existing features and mobile order. The launcher/rendered detector could not run: the container's GitHub DNS lookup failed on git ls-remote, and the skill launcher and installed project are not present. Manual source inspection and targeted regression additions only; no numerical design score claimed.
+
+| Severity | Finding | Fix |
+|---|---|---|
+| P2 | Activity header lost its semantic h2 when the workspace switch replaced the old heading. | Restore a visually hidden h2; preserve visible switch and add arrow/Home/End keyboard selection. |
+| P2 | Mid-width toolbar can wrap unpredictably, and opportunity names and contact IDs need explicit wrapping. | Deterministic toolbar second row at constrained desktop widths, narrow-screen control alignment, and long-value safeguards. |
+| P2 | Loading skeleton always shows activity actions and timeline, even when opening an opportunity deep link. | Match the current view and actual switch/action proportions. |
+| P2 | Preview refresh may restore a different contact while retaining opportunity selection. | Mirror selected fixture ID in the preview URL without changing production routing. |
+| P3 | Excess vertical whitespace in status rows and detail footer, inconsistent active/inactive switch feedback. | Tighten internal spacing, align status text to subject, retain 44px interaction targets, add restrained inactive hover feedback and rem heading sizes. |
+
+The billing/shipping address field tuples were checked and are already correct; no source changes needed. Reviewed color, hierarchy, iconography, copy, motion, forms, loading/empty/error states, keyboard and touch, responsiveness and implementation integrity. No new decorative treatments, unnecessary cards, animations or dependencies. Existing semantic colors and intentional disclosure/motion behavior remain. Browser geometry and actual contrast across states still require local validation. Credit: Damir Sokolovsky's Unslop (CC BY 4.0), see original source links above.

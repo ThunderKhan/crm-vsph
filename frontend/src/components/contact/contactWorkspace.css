@@ -500,13 +500,13 @@
 
 /* Persistent record context. The first row is sized by the compact identity,
    not the larger workspace; neither card is stretched to match the other. */
-.cw-record-grid { grid-template-columns:minmax(0,1fr) minmax(0,2.125fr); grid-template-rows:auto 1fr; column-gap:24px; row-gap:12px; align-items:start; }
+.cw-record-grid { grid-template-columns:minmax(0,1fr) minmax(0,2.125fr); grid-template-rows:max-content minmax(0,1fr); column-gap:24px; row-gap:12px; align-items:start; }
 .cw-record-grid > .cw-identity { grid-column:1; grid-row:1; display:grid; grid-template-columns:minmax(0,1fr); gap:12px; padding:16px 24px; }
 .cw-record-grid > .cw-properties { grid-column:1; grid-row:2; align-self:start; }
 .cw-record-grid > .cw-work-area { grid-column:2; grid-row:1 / span 2; gap:0; min-width:0; align-self:start; min-height:0; }
 .cw-record-grid .cw-identity-main { gap:12px; }
 .cw-record-grid .cw-avatar,.cw-record-grid .cw-skeleton-avatar { width:48px; height:48px; font-size:20px; border-radius:8px; }
-.cw-record-grid .cw-identity h1 { font-size:22px; line-height:28px; font-weight:600; }
+.cw-record-grid .cw-identity h1 { font-size:1.375rem; line-height:1.75rem; font-weight:600; }
 .cw-record-grid .cw-identity-meta { margin-top:4px; }
 .cw-record-grid .cw-identity-side { width:100%; min-width:0; }
 .cw-record-grid .cw-identity-side .cw-actions { width:100%; flex-wrap:nowrap; gap:8px; }
@@ -516,13 +516,13 @@
 .cw-record-grid .cw-identity-side .cw-menu[data-align="left"] { left:0; right:auto; }
 .cw-work-area-header { gap:12px; align-items:center; padding-bottom:12px; }
 .cw-work-area-content { min-width:0; }
-.cw-workspace-switch { position:relative; isolation:isolate; display:grid; grid-template-columns:1fr 1fr; width:max-content; max-width:100%; min-width:0; padding:3px; border:1px solid var(--cw-border); border-radius:7px; background:var(--cw-subtle); }
+.cw-workspace-switch { position:relative; isolation:isolate; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:max-content; max-width:100%; min-width:0; padding:3px; border:1px solid var(--cw-border); border-radius:6px; background:var(--cw-subtle); }
 .cw-workspace-switch-indicator { position:absolute; z-index:-1; inset:3px auto 3px 3px; width:calc((100% - 6px)/2); border-radius:4px; background:var(--cw-highlight); transition:transform var(--motion-standard) var(--ease-out); pointer-events:none; }
 .cw-workspace-switch[data-view="opportunities"] .cw-workspace-switch-indicator { transform:translateX(100%); }
 .cw-workspace-switch button { min-width:0; min-height:44px; padding:8px 12px; border:0; background:transparent; border-radius:4px; color:var(--cw-secondary); font-size:14px; font-weight:500; line-height:20px; cursor:pointer; transition:color var(--motion-micro) var(--ease-out); }
 .cw-workspace-switch button[aria-pressed="true"] { color:var(--cw-ink); font-weight:600; }
 .cw-workspace-switch button:focus-visible { outline-offset:-2px; }
-.cw-work-area-header .cw-history-controls { margin-left:auto; }
+.cw-work-area-header .cw-history-controls { margin-left:auto; flex:0 1 auto; }
 .cw-opportunity-content > .cw-panel-header { border-top:1px solid var(--cw-divider); }
 .cw-opportunity-content .cw-opportunities { padding-bottom:8px; }
 .cw-skeleton-identity-actions { display:flex; gap:8px; }
@@ -544,11 +544,53 @@
 @media (max-width:480px) {
   .cw-record-grid > .cw-identity { grid-template-columns:minmax(0,1fr); padding:16px; }
   .cw-record-grid .cw-identity-side .cw-button:not(.cw-icon) { flex:1; }
-  .cw-record-grid .cw-identity h1 { font-size:20px; line-height:28px; }
+  .cw-record-grid .cw-identity h1 { font-size:1.25rem; line-height:1.75rem; }
   .cw-work-area-header .cw-workspace-switch { width:100%; }
   .cw-work-area-header .cw-history-controls { margin-left:0; }
   .cw-workspace-switch button { padding-inline:8px; }
 }
 @media (prefers-reduced-motion:reduce) {
   .cw-workspace-switch-indicator,.cw-workspace-switch button { transition-duration:0s; }
+}
+
+/* Final craft pass: match the record layout and retain interaction targets. */
+.cw-record-grid .cw-identity-main { align-items:center; min-width:0; }
+.cw-record-grid .cw-identity-text { flex:1; }
+.cw-record-grid .cw-identity-meta { overflow-wrap:anywhere; }
+.cw-record-grid > .cw-identity:has(.cw-actions:empty) .cw-identity-side { display:none; }
+.cw-record-grid .cw-property-list { padding-block:8px 12px; }
+.cw-record-grid .cw-details-footer { padding-block:4px 8px; }
+.cw-record-grid .cw-event-summary { padding-block:0; gap:0; }
+.cw-record-grid .cw-task-status-trigger { margin-inline-start:-4px; }
+.cw-record-grid .cw-event-summary-meta { row-gap:0; }
+.cw-record-grid .cw-event-time { min-width:0; }
+.cw-record-grid .cw-history-tabs button { flex:0 1 auto; min-width:0; }
+.cw-record-grid .cw-history-tabs { gap:8px; }
+.cw-record-grid .cw-opportunities li > div { min-width:0; flex:1 1 240px; overflow-wrap:anywhere; }
+.cw-record-grid .cw-opportunities li > span { font-variant-numeric:tabular-nums; }
+.cw-record-grid .cw-skeleton-switch { width:252px; height:52px; }
+.cw-record-grid .cw-skeleton-history-heading { flex-wrap:wrap; gap:12px; }
+.cw-record-grid .cw-skeleton-toolbar .cw-skeleton-action:nth-child(2) { width:84px; }
+.cw-record-grid .cw-skeleton-toolbar .cw-skeleton-action:last-child { width:148px; }
+.cw-skeleton-opportunity-heading,.cw-skeleton-opportunity-row { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.cw-skeleton-opportunity-row { padding-block:12px; border-top:1px solid var(--cw-divider); }
+.cw-skeleton-opportunity-row > div { flex:1; display:grid; gap:8px; min-width:0; }
+@media (hover:hover) and (pointer:fine) {
+ .cw-workspace-switch button[aria-pressed="false"]:hover { color:var(--cw-ink); background:var(--cw-neutral); }
+}
+@media (min-width:901px) and (max-width:1250px) {
+ .cw-record-grid .cw-work-area-header { align-items:stretch; }
+ .cw-record-grid .cw-work-area-header .cw-history-controls { width:100%; margin-left:0; justify-content:flex-end; }
+}
+@media (max-width:640px) {
+ .cw-record-grid .cw-work-area-header .cw-history-controls { width:100%; margin-left:0; justify-content:flex-start; }
+ .cw-record-grid .cw-skeleton-history-heading { align-items:stretch; }
+ .cw-record-grid .cw-skeleton-switch { width:100%; }
+ .cw-record-grid .cw-skeleton-toolbar { justify-content:flex-start; width:100%; }
+}
+@media (max-width:360px) {
+ .cw-record-grid .cw-history-tabs { gap:4px; }
+ .cw-record-grid .cw-history-tabs button { padding-inline:8px; }
+ .cw-record-grid .cw-skeleton-toolbar .cw-skeleton-action:nth-child(2) { width:68px; }
+ .cw-record-grid .cw-skeleton-toolbar .cw-skeleton-action:last-child { width:112px; }
 }

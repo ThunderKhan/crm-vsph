@@ -376,3 +376,36 @@ test("workspace views keep contact context, activity state and deep links",async
   expect(ma.y+ma.height).toBeLessThan(mp.y);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
 });
+
+test("final craft pass preserves keyboard views, address rows and narrow toolbar bounds",async({page})=>{
+  await page.setViewportSize({width:1024,height:768});
+  await page.goto(url);
+  const history=page.getByRole("region",{name:"Activity history",exact:true});
+  const switcher=page.getByRole("group",{name:"Contact workspace views"});
+  const details=page.locator(".cw-properties");
+  await expect(history).toBeVisible();
+  await expect(history.getByRole("heading",{name:"Activity history",exact:true})).toBeAttached();
+  await switcher.getByRole("button",{name:"Activity history"}).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(switcher.getByRole("button",{name:"Opportunities"})).toBeFocused();
+  await expect(switcher.getByRole("button",{name:"Opportunities"})).toHaveAttribute("aria-pressed","true");
+  await page.keyboard.press("ArrowLeft");
+  await expect(switcher.getByRole("button",{name:"Activity history"})).toBeFocused();
+  await history.getByRole("button",{name:"Filter",exact:true}).click();
+  const menu=history.locator(".cw-filter-menu");
+  await expect(menu).toBeVisible();
+  expect(await menu.evaluate(el=>{const r=el.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth;})).toBeTruthy();
+  await page.keyboard.press("Escape");
+  await details.getByRole("button",{name:"View all contact details"}).click();
+  await details.getByRole("button",{name:"Billing address",exact:true}).click();
+  const billing=details.locator(".cw-property-group").filter({has:details.getByRole("button",{name:"Billing address",exact:true})});
+  await expect(billing.locator("dt")).toHaveText(["Street","City","State / province","Postal code","Country","Phone"]);
+  await page.getByRole("button",{name:"Minimal contact",exact:true}).click();
+  await expect(page.getByRole("heading",{name:/Neel Shah/})).toBeVisible();
+  await switcher.getByRole("button",{name:"Opportunities"}).click();
+  await expect(page).toHaveURL(/scenario=preview-contact-sparse/);
+  await page.reload();
+  await expect(page.getByRole("heading",{name:/Neel Shah/})).toBeVisible();
+  await expect(page.getByRole("heading",{name:"No linked opportunities"})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+});

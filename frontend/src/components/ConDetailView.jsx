@@ -169,7 +169,17 @@ function useActivityView() {
 }
 
 function WorkspaceSwitch({view,onChange,contentId}) {
-  return <div className="cw-workspace-switch" role="group" aria-label="Contact workspace views" data-view={view}>
+  function handleKeys(event){
+    if(!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;
+    const buttons=Array.from(event.currentTarget.querySelectorAll("button"));
+    const index=buttons.indexOf(document.activeElement);
+    if(index<0)return;
+    event.preventDefault();
+    const next=event.key==="Home"?0:event.key==="End"?buttons.length-1:(index+(event.key==="ArrowRight"?1:-1)+buttons.length)%buttons.length;
+    buttons[next]?.focus();
+    buttons[next]?.click();
+  }
+  return <div className="cw-workspace-switch" role="group" aria-label="Contact workspace views" data-view={view} onKeyDown={handleKeys}>
     <span className="cw-workspace-switch-indicator" aria-hidden="true"/>
     {[["activity","Activity history"],["opportunities","Opportunities"]].map(([value,label])=><button type="button" key={value} aria-pressed={view===value} aria-controls={contentId} onClick={()=>onChange(value)}>{label}</button>)}
   </div>;
@@ -194,6 +204,7 @@ function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTask
   const alphabetical=sort==="az"||sort==="za";
   const groups=alphabetical?[{key:"alphabetical",label:null,items}]:groupActivityByDate(items);
   return <>
+    <h2 className="cw-sr">Activity history</h2>
     <Expandable id={searchId} open={searchOpen}><div className="cw-history-search"><Search size={18} aria-hidden="true"/><input ref={searchRef} type="search" aria-label="Search activity subjects" placeholder="Search activities…" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Escape")closeSearch();}}/><button type="button" className="cw-icon" aria-label="Close search" onClick={closeSearch}><X size={18} aria-hidden="true"/></button></div></Expandable>
     <SlidingTabs className="cw-history-tabs" label="Filter activity" options={[["all","All activity"],["call","Calls"],...(canViewTasks ? [["task","Tasks"]] : [])]} value={filter} onChange={setFilter}/>
     {feedback&&<p className="cw-feedback cw-history-feedback" role="status"><CheckCircle size={16} aria-hidden="true"/>{feedback}{lastCreated&&!items.some(item=>activityKey(item.kind,item.record)===lastCreated)&&" It is hidden by your current view or permissions."}</p>}
@@ -396,7 +407,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const actions=[...(canCall ? [{id:"call",label:"Log a call"}] : []),...(canTask ? [{id:"task",label:"Create task"}] : []),{id:"email",label:"Compose email"}];
   return <div className="cw-workspace">
     <nav className="cw-breadcrumb" aria-label="Breadcrumb"><button type="button" className="cw-back" onClick={closeWorkspace} disabled={!!pending||Object.values(taskWrites).some(Boolean)}><ArrowLeft size={16}/> Contacts</button></nav>
-    {loading ? <ContactSkeleton/> : !contact ? <div className="cw-panel cw-empty"><h2>Contact unavailable</h2><p role="alert">{loadError || "Contact not found."}</p><button type="button" className="cw-button" onClick={()=>{setLoading(true);setRevision(v=>v+1);}}>Retry</button></div> : <>
+    {loading ? <ContactSkeleton view={tab}/> : !contact ? <div className="cw-panel cw-empty"><h2>Contact unavailable</h2><p role="alert">{loadError || "Contact not found."}</p><button type="button" className="cw-button" onClick={()=>{setLoading(true);setRevision(v=>v+1);}}>Retry</button></div> : <>
       {loadError && <p className="cw-error" role="alert">{loadError}</p>}
       <div className="cw-grid cw-record-grid">
       <section className="cw-panel cw-identity">

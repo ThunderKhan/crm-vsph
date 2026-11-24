@@ -45,7 +45,13 @@ function PreviewViewUrl() {
   const location=useLocation();
   useEffect(()=>{
     const current=new URL(window.location.href);
-    const view=new URLSearchParams(location.search).get("contact_view");
+    const params=new URLSearchParams(location.search);
+    const view=params.get("contact_view");
+    const scenario=PREVIEW_SCENARIOS.find(s=>s.id===params.get("contact_id"));
+    if(scenario){
+      const existing=current.searchParams.get("scenario");
+      if(existing!==scenario.id&&existing!==scenario.label.toLowerCase().split(" ")[0]&&!(existing===null&&scenario.id===PREVIEW_SCENARIOS[0].id))current.searchParams.set("scenario",scenario.id);
+    }
     if(view==="opportunities")current.searchParams.set("contact_view",view);else current.searchParams.delete("contact_view");
     if(current.href!==window.location.href)window.history.replaceState(window.history.state,"",current);
   },[location.search]);

@@ -117,3 +117,7 @@ Retain all 11 prior browser cases and add one narrow-screen edit/validation regr
 ### Persistent contact context layout
 
 Expected 25 utility and 13 browser cases. Existing browser assertions updated to the renamed workspace switch, reduced-motion indicator and existing linked opportunity data. New regression checks desktop column geometry and 12px identity/details gap, persistent details disclosure, switching with search/sort/expanded node state, contextual controls, preview URL refresh and mobile order/no horizontal overflow. Test actual production deep links with real auth/backend separately. Run all existing Node suites, build and npm run test:contact-browser. Rendered verification remains pending.
+
+### Post-layout final craft pass
+
+Expected 25 utility and 14 browser cases. Existing regressions retained. New case covers arrow navigation, accessible heading, 1024px filter bounds, existing labelled billing address rows, minimal-contact opportunity deep-link refresh and absence of horizontal overflow. Review both view skeletons and narrow/long content on real browser. All prior test commands remain unchanged. No rendered detector or browser pass claimed remotely.
