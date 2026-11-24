@@ -15,3 +15,5 @@ The preview is a developer-only visual acceptance aid, not a substitute for end-
 ## Visual parity review
 
 Open http://localhost:5173/dev/contact-preview?scenario=reference&clean=1 for the reference-like empty activity state without the development toolbar. The fixture uses an example.com email rather than real contact information. The contact workspace now uses document scrolling (not a fixed-height inner scrollport), the six-field summary uses label/value rows, and the extra groups are behind a single View all contact details disclosure. Use the normal preview URL to switch to populated and long-content states. Verify at 1272 × 916 CSS viewport and 390px mobile, including full-page screenshots. The reference's duplicate filled actions are intentionally reduced to one filled primary action in each state, as DESIGN.md requires. Actual browser validation remains local.
+
+Motion review: use Slow requests, Fail next write and Reset data to inspect pending/saved/failed feedback, skeletons and new activity highlights. Open `log/contact-workspace-verification.md` for the optional browser smoke suite and local commands.

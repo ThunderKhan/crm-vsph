@@ -6,8 +6,9 @@ import { readSessionValue } from "../utils/session.js";
 import { canDoAction, hasModule } from "../utils/modules";
 import AddContactModal from "./modals/AddContactModal";
 import ContactProperties, { Expandable } from "./contact/ContactProperties";
-import { SlidingTabs, SaveGlyph, CopyGlyph, useCopyFeedback } from "./contact/ContactMotion";
-import { activityKey } from "./contact/contactMotionUtils.js";
+import { SlidingTabs, SaveGlyph, CopyGlyph, useCopyFeedback, Tooltip, ContactSkeleton } from "./contact/ContactMotion";
+import { useDialogExit } from "./contact/useDialogExit";
+import { activityKey, requiredActivityFields } from "./contact/contactMotionUtils.js";
 import { activityHistory, contactName, emailLink, usableEmail, formatDate, humanize, taskDueDate } from "./contact/contactWorkspaceUtils.js";
 import "./contact/contactWorkspace.css";
 
@@ -47,10 +48,10 @@ function MoreActions({ canEdit, canDelete, onCampaign, onDelete, code }) {
     requestAnimationFrame(() => { const buttons = items(); buttons[last ? buttons.length-1 : 0]?.focus(); });
   };
   return <div className="cw-menu-anchor" ref={container} onKeyDown={keyDown}>
-    <button type="button" className="cw-button cw-icon" ref={trigger} aria-label="More contact actions" aria-haspopup="menu" aria-expanded={open} aria-controls={id} onClick={() => open ? close(true) : openMenu()} onKeyDown={e => { if (["ArrowDown","ArrowUp"].includes(e.key) && !open) { e.stopPropagation(); e.preventDefault(); openMenu(e.key === "ArrowUp"); } }}>{copied ? <CopyGlyph copied/> : <MoreHorizontal size={20} className="cw-more-glyph" aria-hidden="true"/>}</button>
+    <Tooltip text={copied ? "Contact ID copied" : "More contact actions"}><button type="button" className="cw-button cw-icon" ref={trigger} aria-label="More contact actions" aria-haspopup="menu" aria-expanded={open} aria-controls={id} onClick={() => open ? close(true) : openMenu()} onKeyDown={e => { if (["ArrowDown","ArrowUp"].includes(e.key) && !open) { e.stopPropagation(); e.preventDefault(); openMenu(e.key === "ArrowUp"); } }}><span className="cw-more-feedback" data-copied={copied}><MoreHorizontal size={20} className="cw-more-glyph" aria-hidden="true"/><CopyGlyph copied={copied}/></span></button></Tooltip>
     <div id={id} role="menu" aria-label="Contact actions" className="cw-menu" data-open={open} data-align={align} inert={!open} ref={menu}>
       {canEdit && <button type="button" role="menuitem" onClick={() => { close(true); onCampaign(); }}><UserPlus size={16}/> Add to campaign</button>}
-      {code && <button type="button" role="menuitem" onClick={async () => { close(true); if (await copyId()) toast.success("Contact ID copied"); else toast.error("Could not copy contact ID"); }}><Copy size={16}/> Copy contact ID</button>}
+      {code && <button type="button" role="menuitem" onClick={async () => { close(true); if (await copyId()) toast.success("Contact ID copied",{id:"cw-copy-id",duration:1800}); else toast.error("Could not copy contact ID",{id:"cw-copy-id"}); }}><Copy size={16}/> Copy contact ID</button>}
       {canDelete && <button type="button" role="menuitem" className="cw-danger-text" onClick={() => { close(true); onDelete(); }}><Trash2 size={16}/> Delete contact</button>}
     </div>
   </div>;
@@ -58,17 +59,18 @@ function MoreActions({ canEdit, canDelete, onCampaign, onDelete, code }) {
 
 function DeleteDialog({ name, onConfirm, onClose, pending, error }) {
   const ref = useRef(null), title = useId();
+  const {closing,close}=useDialogExit(onClose);
   useEffect(() => {
     const dialog = ref.current;
     if (dialog && !dialog.open) dialog.showModal();
     return () => { if (dialog?.open) dialog.close(); };
   }, []);
-  return <dialog ref={ref} className="cw-dialog" aria-labelledby={title} onCancel={e => { e.preventDefault(); if (!pending) onClose(); }}>
-    <div className="cw-dialog-body">
+  return <dialog ref={ref} className="cw-dialog" data-closing={closing} aria-labelledby={title} aria-busy={pending||closing} onCancel={e => { e.preventDefault(); if (!pending) close(); }}>
+    <div className="cw-dialog-body" inert={closing}>
       <h2 id={title}>Delete contact?</h2>
       <p>This will delete {name}. Confirm only if you no longer need this contact.</p>
       {error && <p role="alert" className="cw-error">{error}</p>}
-      <div className="cw-actions cw-dialog-actions"><button type="button" autoFocus className="cw-button" onClick={onClose} disabled={pending}>Cancel</button><button type="button" className="cw-button cw-danger" onClick={onConfirm} disabled={pending}>{pending ? "Deleting…" : "Delete contact"}</button></div>
+      <div className="cw-actions cw-dialog-actions"><button type="button" autoFocus className="cw-button" onClick={close} disabled={pending||closing}>Cancel</button><button type="button" className="cw-button cw-danger" onClick={onConfirm} disabled={pending||closing}>{pending ? "Deleting…" : "Delete contact"}</button></div>
     </div>
   </dialog>;
 }
@@ -79,7 +81,7 @@ function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTask
     <div className="cw-panel-header"><h2 id="cw-history-heading">Activity history</h2><span className="cw-muted">Newest first</span></div>
     <SlidingTabs className="cw-history-tabs" label="Filter activity" options={[["all","All activity"],["call","Calls"],...(canViewTasks ? [["task","Tasks"]] : [])]} value={filter} onChange={setFilter}/>
     {error && <div className="cw-error cw-history-error" role="alert">{error} <button type="button" className="cw-link" onClick={onRetry}>Retry</button></div>}
-    {loading ? <p className="cw-empty" role="status">Loading activity…</p> : items.length === 0 ? <div className="cw-empty cw-history-empty"><FileText size={44} strokeWidth={1.4} aria-hidden="true"/><h3>{error ? "Activity unavailable" : filter === "all" ? "Activity history appears here" : filter === "call" ? "No calls yet" : "No tasks yet"}</h3><p>{error ? "Retry to load the history." : filter === "all" ? "Calls and tasks in chronological order." : "Recorded interactions will appear here."}</p></div> :
+    {loading ? <ContactSkeleton history/> : items.length === 0 ? <div className="cw-empty cw-history-empty"><FileText size={44} strokeWidth={1.4} aria-hidden="true"/><h3>{error ? "Activity unavailable" : filter === "all" ? "Activity history appears here" : filter === "call" ? "No calls yet" : "No tasks yet"}</h3><p>{error ? "Retry to load the history." : filter === "all" ? "Calls and tasks in chronological order." : "Recorded interactions will appear here."}</p></div> :
       <ol className="cw-timeline">{items.map(({kind,record,date}) => {
         const call = kind === "call", Icon = call ? Phone : CheckCircle;
         const subject = call ? record.call_subject : record.task_subject;
@@ -114,9 +116,11 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const [tab,setTab] = useState("overview"), [filter,setFilter] = useState("all"), [mode,setMode] = useState(null), [lastMode,setLastMode] = useState(null);
   const displayMode = mode || lastMode;
   const [call,setCall] = useState(blankCall), [task,setTask] = useState(blankTask), [email,setEmail] = useState(blankEmail);
+  const [fieldErrors,setFieldErrors]=useState({});
   const [savedMode,setSavedMode] = useState(null), [newActivity,setNewActivity] = useState(null);
   const [pending,setPending] = useState(null), [saveError,setSaveError] = useState(""), [feedback,setFeedback] = useState("");
   const [edit,setEdit] = useState(false), [focusCampaign,setFocusCampaign] = useState(false), [deleting,setDeleting] = useState(false), [deletePending,setDeletePending] = useState(false), [deleteError,setDeleteError] = useState("");
+  const editSaved=useRef(false);
   const composerId = useId(), composer = useRef(null), quickActions = useRef(null), saveLock = useRef(false), deleteLock = useRef(false);
   const canEdit = canDoAction("CONTACTS","EDIT"), canDelete = canDoAction("CONTACTS","DELETE"), canCall = canDoAction("CONTACTS","CREATE");
   const canAssignCampaign = canEdit && hasModule("CAMPAIGNS") && canDoAction("CAMPAIGNS","VIEW");
@@ -168,7 +172,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   useEffect(()=>{if(!newActivity)return;const timer=setTimeout(()=>setNewActivity(null),1250);return ()=>clearTimeout(timer);},[newActivity]);
   function openComposer(next) {
     if (saveLock.current || pending || (next==="call" && !canCall) || (next==="task" && !canTask)) return;
-    setTab("overview"); setMode(next); setLastMode(next); setSavedMode(null); setSaveError(""); setFeedback("");
+    setTab("overview"); setMode(next); setLastMode(next); setSavedMode(null); setFieldErrors({}); setSaveError(""); setFeedback("");
     requestAnimationFrame(() => composer.current?.querySelector("input:not([disabled]),textarea:not([disabled]),select:not([disabled])")?.focus());
   }
   function cancelComposer() {
@@ -176,6 +180,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
     // Closing is not a destructive reset: keep per-mode drafts for reopening.
     const previousMode = mode;
     setMode(null);
+    setFieldErrors({});
     setSavedMode(null);
     setSaveError("");
     setFeedback("");
@@ -200,9 +205,10 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
       window.location.href = href; setFeedback("Email draft requested in your mail client. No email has been sent by CRM."); return;
     }
     const isCall = mode === "call";
-    if (isCall ? !canCall || !call.subject.trim() || !call.description.trim() : !canTask || !task.subject.trim()) {
-      setSaveError(isCall ? "Enter a call subject and notes." : "Enter a task subject."); return;
-    }
+    if (isCall ? !canCall : !canTask) return;
+    const errors=requiredActivityFields(mode,isCall?call:task);
+    setFieldErrors(errors);
+    if(Object.keys(errors).length){composer.current?.querySelector(`[name="${Object.keys(errors)[0]}"]`)?.focus();return;}
     saveLock.current = true; setPending(mode);
     try {
       const payload = isCall ? {call_user_fk:currentUserId,call_contact_fk:contactId,call_subject:call.subject.trim(),call_description:call.description.trim()} :
@@ -224,7 +230,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
     try {
       const result=await api.delete(endpoint);
       if (!result.success) throw new Error(errorMessage(result,"Could not delete contact."));
-      toast.success("Contact deleted"); onChanged?.(); onClose();
+      toast.success("Contact deleted",{id:"cw-contact-deleted",duration:2500}); onChanged?.(); onClose();
     } catch(error) { setDeleteError(error.message || "Could not delete contact."); }
     finally { deleteLock.current=false; setDeletePending(false); }
   }
@@ -234,7 +240,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const actions=[...(canCall ? [{id:"call",label:"Log a call"}] : []),...(canTask ? [{id:"task",label:"Create task"}] : []),{id:"email",label:"Compose email"}];
   return <div className="cw-workspace">
     <nav className="cw-breadcrumb" aria-label="Breadcrumb"><button type="button" className="cw-back" onClick={closeWorkspace} disabled={!!pending}><ArrowLeft size={16}/> Contacts</button></nav>
-    {loading ? <div className="cw-panel cw-empty" role="status">Loading contact…</div> : !contact ? <div className="cw-panel cw-empty"><h2>Contact unavailable</h2><p role="alert">{loadError || "Contact not found."}</p><button type="button" className="cw-button" onClick={()=>{setLoading(true);setRevision(v=>v+1);}}>Retry</button></div> : <>
+    {loading ? <ContactSkeleton/> : !contact ? <div className="cw-panel cw-empty"><h2>Contact unavailable</h2><p role="alert">{loadError || "Contact not found."}</p><button type="button" className="cw-button" onClick={()=>{setLoading(true);setRevision(v=>v+1);}}>Retry</button></div> : <>
       {loadError && <p className="cw-error" role="alert">{loadError}</p>}
       <section className="cw-panel cw-identity">
         <div className="cw-identity-main"><div className="cw-avatar" aria-hidden="true">{initials}</div><div className="cw-identity-text"><h1>{name}</h1><div className="cw-identity-meta"><span>{contact.contact_code || "No record code"}</span></div></div></div>
@@ -251,14 +257,14 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
             <div className="cw-panel-header"><h2 id="cw-composer-heading">Quick actions</h2></div>
             <div className="cw-quick-actions" ref={quickActions}>{actions.map(({id,label})=><button type="button" className={`cw-button ${!mode && id===actions[0]?.id ? "cw-primary" : ""}`} key={id} data-mode={id} aria-pressed={mode===id} aria-expanded={mode===id} aria-controls={composerId} onClick={()=>openComposer(id)} disabled={!!pending}>{label}</button>)}</div>
             <Expandable open={!!mode} id={composerId}><div ref={composer} className="cw-composer">
-              {displayMode && <form onSubmit={submit} className="cw-form">
+              {displayMode && <form onSubmit={submit} noValidate className="cw-form" aria-busy={!!pending} onChange={()=>{if(savedMode){setSavedMode(null);setFeedback("");}}}>
                 <h3>{actions.find(a=>a.id===displayMode)?.label}</h3>
                 <fieldset key={displayMode} disabled={!!pending} className="cw-form-fields cw-mode-content">
                 {displayMode==="call" ? <>
-                  <label><span className="cw-field-label">Subject / outcome <span className="cw-required" aria-hidden="true">*</span></span><input required value={call.subject} onChange={e=>setCall({...call,subject:e.target.value})} placeholder="Enter an outcome or call subject"/></label>
-                  <label><span className="cw-field-label">Call notes <span className="cw-required" aria-hidden="true">*</span></span><textarea required rows={4} value={call.description} onChange={e=>setCall({...call,description:e.target.value})} placeholder="What was discussed?"/></label>
+                  <label><span className="cw-field-label">Subject / outcome <span className="cw-required" aria-hidden="true">*</span></span><input required name="subject" value={call.subject} aria-invalid={!!fieldErrors.subject} aria-describedby={fieldErrors.subject ? composerId+"-subject-error" : undefined} onChange={e=>{setCall({...call,subject:e.target.value});if(e.target.value.trim())setFieldErrors(prev=>({...prev,subject:undefined}));}} placeholder="Enter an outcome or call subject"/>{fieldErrors.subject && <span className="cw-field-error" id={composerId+"-subject-error"} role="alert">{fieldErrors.subject}</span>}</label>
+                  <label><span className="cw-field-label">Call notes <span className="cw-required" aria-hidden="true">*</span></span><textarea required rows={4} name="description" value={call.description} aria-invalid={!!fieldErrors.description} aria-describedby={fieldErrors.description ? composerId+"-description-error" : undefined} onChange={e=>{setCall({...call,description:e.target.value});if(e.target.value.trim())setFieldErrors(prev=>({...prev,description:undefined}));}} placeholder="What was discussed?"/>{fieldErrors.description && <span className="cw-field-error" id={composerId+"-description-error"} role="alert">{fieldErrors.description}</span>}</label>
                 </> : displayMode==="task" ? <>
-                  <label><span className="cw-field-label">Task subject <span className="cw-required" aria-hidden="true">*</span></span><input required value={task.subject} onChange={e=>setTask({...task,subject:e.target.value})} placeholder="Enter a task name"/></label>
+                  <label><span className="cw-field-label">Task subject <span className="cw-required" aria-hidden="true">*</span></span><input required name="subject" value={task.subject} aria-invalid={!!fieldErrors.subject} aria-describedby={fieldErrors.subject ? composerId+"-subject-error" : undefined} onChange={e=>{setTask({...task,subject:e.target.value});if(e.target.value.trim())setFieldErrors(prev=>({...prev,subject:undefined}));}} placeholder="Enter a task name"/>{fieldErrors.subject && <span className="cw-field-error" id={composerId+"-subject-error"} role="alert">{fieldErrors.subject}</span>}</label>
                   <label>Priority<select value={task.priority} onChange={e=>setTask({...task,priority:e.target.value})}><option value="LOW">Low</option><option value="NORMAL">Normal</option><option value="HIGH">High</option></select></label>
                   <div className="cw-date-row"><label>Due date<input type="date" value={task.date} onChange={e=>setTask({...task,date:e.target.value})}/></label><label>Due time<input type="time" value={task.time} onChange={e=>setTask({...task,time:e.target.value})} disabled={!task.date}/></label></div>
                   <label>Description<textarea rows={3} value={task.description} onChange={e=>setTask({...task,description:e.target.value})} placeholder="What needs to be done?"/></label>
@@ -274,13 +280,13 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
                 <button type="submit" className="cw-button cw-primary cw-save-button" data-state={pending ? "pending" : savedMode===mode && mode ? "saved" : "idle"} disabled={!!pending || !!savedMode || (mode!=="email" && historyLoading) || (mode==="email" && !recipients.length)}><SaveGlyph state={pending ? "pending" : savedMode===mode && mode ? "saved" : "idle"}/>{pending ? "Saving…" : savedMode===mode && mode ? "Saved" : displayMode==="call" ? "Save call" : displayMode==="task" ? "Create task" : "Open email client"}</button></div></div>
               </form>}
             </div></Expandable>
-            {feedback && <p className="cw-feedback" role="status"><CheckCircle size={16} aria-hidden="true"/>{feedback}</p>}
+            {feedback && <p className="cw-feedback" role="status">{mode!=="email" && <CheckCircle size={16} aria-hidden="true"/>}{feedback}</p>}
           </section>
           <Timeline calls={calls} tasks={tasks} loading={historyLoading} error={historyError} filter={filter} setFilter={value=>{setNewActivity(null);setFilter(value);}} canViewTasks={canViewTasks} onRetry={retryHistory} newActivity={newActivity}/>
         </div>
         <ContactProperties contact={contact}/>
       </div> : <Opportunities opportunities={contact.opportunities || []}/>}
-      {edit && canEdit && <AddContactModal isOpen={edit} onClose={()=>setEdit(false)} onSuccess={()=>{setEdit(false);setRevision(v=>v+1);onChanged?.();}} contactToEdit={contact} workspaceMotion focusCampaign={focusCampaign} canAssignCampaign={canAssignCampaign}/>}
+      {edit && canEdit && <AddContactModal isOpen={edit} onClose={()=>{setEdit(false);if(editSaved.current){editSaved.current=false;setRevision(v=>v+1);onChanged?.();}}} onSuccess={()=>{editSaved.current=true;}} contactToEdit={contact} workspaceMotion focusCampaign={focusCampaign} canAssignCampaign={canAssignCampaign}/>}
       {deleting && canDelete && <DeleteDialog name={name} pending={deletePending} error={deleteError} onClose={()=>setDeleting(false)} onConfirm={confirmDelete}/>}
     </>}
   </div>;

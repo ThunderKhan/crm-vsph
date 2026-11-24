@@ -10,7 +10,8 @@ const Modal = ({
   footer, 
   widthClass = 'w-full max-w-md',
   workspaceMotion = false,
-  busy = false 
+  busy = false,
+  closing = false
 }) => {
   const dialogRef = useRef(null);
   const titleId = useId();
@@ -22,11 +23,11 @@ const Modal = ({
   }, [workspaceMotion, isOpen]);
   if (!isOpen) return null;
   if (workspaceMotion) return (
-    <dialog ref={dialogRef} className="cw-edit-dialog" aria-labelledby={titleId} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
-      <div className="cw-edit-inner">
+    <dialog ref={dialogRef} className="cw-edit-dialog" data-closing={closing} aria-busy={busy||closing} aria-labelledby={titleId} onCancel={event => { event.preventDefault(); if (!busy && !closing) onClose(); }}>
+      <div className="cw-edit-inner" inert={closing}>
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-slate-200 shrink-0 gap-2">
           <h2 id={titleId} className="text-vsph-navy text-lg font-semibold">{title}</h2>
-          <div className="flex items-center gap-2 flex-wrap justify-end">{headerActions}<button type="button" className="cw-icon" aria-label="Close dialog" onClick={onClose} disabled={busy}><X size={18}/></button></div>
+          <div className="flex items-center gap-2 flex-wrap justify-end">{headerActions}<button type="button" className="cw-icon" aria-label="Close dialog" onClick={onClose} disabled={busy||closing}><X size={18}/></button></div>
         </div>
         <div className="cw-edit-scroll">{children}</div>
         {footer && <div className="px-4 sm:px-6 py-4 border-t border-slate-200 flex flex-wrap items-center justify-end gap-3 bg-vsph-grey shrink-0">{footer}</div>}

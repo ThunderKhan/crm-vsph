@@ -81,3 +81,7 @@ When backend credentials are unavailable, follow [contact-preview.md](contact-pr
 
 - [ ] Open every property group; label and value tracks align with the summary at desktop and mobile widths, with identical typography and row spacing.
 - [ ] External profile/navigator URL labels truncate gracefully; icons remain beside the text and links open the complete destination. Expanded email and phone values remain readable/copyable; long descriptive values wrap without horizontal overflow.
+
+## Motion refinement acceptance (M1–M4)
+
+Run `npm run test:contact-motion` alongside existing preview/workspace tests. For optional browser automation, in frontend run `npm install --no-save --package-lock=false @playwright/test`, `npx playwright install chromium`, start `npm run dev` in a separate terminal, then `npx playwright test tests/contact-motion.browser.spec.mjs --workers=1`. The optional test tool is not a committed production dependency. Test normal and reduced motion, keyboard, clipboard, failure/retry, mode changes, no replay on filter, modal exit/focus, delayed loading and long mobile content. Inspect at desktop/tablet/mobile and record DevTools performance with CPU throttling; no continuous animations except pending spinner/skeleton, no forced animation on page entry, only measured layout changes. Source helper tests executed in available JS runtime; full browser suite, Vite build and lint not executed in this environment (Git DNS and dependency access unavailable).

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Loader2, User } from "lucide-react";
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
+import { useDialogExit } from "../contact/useDialogExit";
 import SearchableSelect from "../ui/SearchableSelect";
 import { api } from "../../utils/api";
 import { readSessionValue } from "../../utils/session.js";
@@ -19,6 +20,8 @@ const AddContactModal = ({
   canAssignCampaign = false,
 }) => {
   const [loading, setLoading] = useState(false);
+  const {closing,close}=useDialogExit(onClose,workspaceMotion);
+  const submitLock=useRef(false);
   const [error, setError] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [ownerId, setOwnerId] = useState("");
@@ -208,7 +211,8 @@ const AddContactModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (loading || (workspaceMotion && focusCampaign && (campaignLoading || campaignError))) return;
+    if (submitLock.current || loading || closing || (workspaceMotion && focusCampaign && (campaignLoading || campaignError))) return;
+    submitLock.current=true;
     setLoading(true);
     setError("");
 
@@ -275,12 +279,13 @@ const AddContactModal = ({
           contactToEdit
             ? "Contact updated successfully!"
             : "Contact created successfully!",
+          workspaceMotion ? {id:"cw-contact-edit",duration:2500} : undefined,
         );
         setFieldErrors({});
         onSuccess();
-        onClose();
+        close();
       } else {
-        toast.error(
+        if (!workspaceMotion) toast.error(
           response.message ||
             (contactToEdit
               ? "Failed to update contact"
@@ -289,9 +294,10 @@ const AddContactModal = ({
         setError(response.message || "Failed to create contact");
       }
     } catch (err) {
-      toast.error(err.message || "An error occurred.");
+      if (!workspaceMotion) toast.error(err.message || "An error occurred.");
       setError(err.message || "An error occurred.");
     } finally {
+      submitLock.current=false;
       setLoading(false);
     }
   };
@@ -313,8 +319,8 @@ const AddContactModal = ({
       <Button
         type="button"
         variant="secondary"
-        onClick={onClose}
-        disabled={workspaceMotion && loading}
+        onClick={close}
+        disabled={workspaceMotion && (loading||closing)}
         className="text-vsph-navy hover:bg-vsph-grey"
       >
         Cancel
@@ -323,7 +329,7 @@ const AddContactModal = ({
         type="submit"
         form="add-contact-form"
         variant="primary"
-        disabled={loading || (workspaceMotion && focusCampaign && (campaignLoading || !!campaignError))}
+        disabled={loading || closing || (workspaceMotion && focusCampaign && (campaignLoading || !!campaignError))}
         className="min-w-[120px]"
       >
         {loading ? <Loader2 size={16} className="animate-spin mr-2" /> : null}
@@ -335,7 +341,8 @@ const AddContactModal = ({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={close}
+      closing={closing}
       title={focusCampaign ? "Assign campaign" : contactToEdit ? "Edit Contact" : "Add New Contact"}
       workspaceMotion={workspaceMotion}
       busy={loading}

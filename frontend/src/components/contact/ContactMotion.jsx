@@ -1,4 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { cloneElement, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, Copy } from "lucide-react";
 import { selectionIndicator } from "./contactMotionUtils.js";
 
@@ -42,22 +43,79 @@ export function SaveGlyph({ state }) {
 
 // A timer is restarted on each successful copy, not on each render.
 export function useCopyFeedback(value) {
-  const [copied,setCopied] = useState(false), [error,setError] = useState(false);
+  const [result,setResult] = useState(null);
   const timer=useRef(null), alive=useRef(true), attempt=useRef(0);
-  useEffect(()=>{alive.current=true; return ()=>{alive.current=false;attempt.current++;clearTimeout(timer.current);};},[]);
+  useEffect(()=>{alive.current=true;return ()=>{alive.current=false;attempt.current++;clearTimeout(timer.current);};},[]);
   useEffect(()=>{attempt.current++;clearTimeout(timer.current);},[value]);
   async function copy() {
     const ticket=++attempt.current;
     try {
       await navigator.clipboard.writeText(String(value));
       if (!alive.current || ticket!==attempt.current) return false;
-      clearTimeout(timer.current);setCopied(true);setError(false);
-      timer.current=setTimeout(()=>{if(alive.current)setCopied(false);},1500);
+      clearTimeout(timer.current);setResult({value,status:"copied"});
+      timer.current=setTimeout(()=>{if(alive.current)setResult(null);},1500);
       return true;
     } catch {
-      if (alive.current && ticket===attempt.current) {clearTimeout(timer.current);setCopied(false);setError(true);}
+      if (alive.current && ticket===attempt.current) {clearTimeout(timer.current);setResult({value,status:"error"});}
       return false;
     }
   }
-  return {copied,error,copy};
+  return {copied:result?.value===value && result?.status==="copied",error:result?.value===value && result?.status==="error",copy};
+}
+
+// Shared hover delay; focus is immediate and the tooltip is hoverable/dismissible.
+let lastTooltipClose = -Infinity;
+export function Tooltip({ text, children }) {
+  const id=useId(), anchor=useRef(null), bubble=useRef(null), timer=useRef(null);
+  const [open,setOpen]=useState(false), [position,setPosition]=useState(null);
+  const focused=useRef(false), hovered=useRef(false), bubbleHovered=useRef(false);
+  function close() {clearTimeout(timer.current);setOpen(false);lastTooltipClose=Date.now();}
+  function show(event, immediate=false) {
+    anchor.current=event.currentTarget;
+    clearTimeout(timer.current);
+    if (immediate || Date.now()-lastTooltipClose<300) setOpen(true);
+    else timer.current=setTimeout(()=>setOpen(true),350);
+  }
+  function scheduleClose() {
+    clearTimeout(timer.current);
+    timer.current=setTimeout(()=>{if(!focused.current&&!hovered.current&&!bubbleHovered.current)close();},160);
+  }
+  useEffect(()=>()=>clearTimeout(timer.current),[]);
+  useLayoutEffect(()=>{
+    if(!open || !anchor.current || !bubble.current)return;
+    const update=()=>{
+      const a=anchor.current?.getBoundingClientRect(), b=bubble.current?.getBoundingClientRect();
+      if(!a||!b)return;
+      const above=a.top>=b.height+12;
+      setPosition({left:Math.max(8,Math.min(a.left+(a.width-b.width)/2,window.innerWidth-b.width-8)),top:above?a.top-b.height-6:Math.min(a.bottom+6,window.innerHeight-b.height-8)});
+    };
+    update();
+    window.addEventListener("resize",update);window.addEventListener("scroll",update,true);
+    return ()=>{window.removeEventListener("resize",update);window.removeEventListener("scroll",update,true);};
+  },[open,text]);
+  useEffect(()=>{
+    if(!open)return;
+    const dismiss=e=>{if(e.key==="Escape"){clearTimeout(timer.current);setOpen(false);lastTooltipClose=Date.now();}};
+    document.addEventListener("keydown",dismiss);
+    return ()=>document.removeEventListener("keydown",dismiss);
+  },[open]);
+  return <>{cloneElement(children,{
+    "aria-describedby":[children.props["aria-describedby"],open?id:null].filter(Boolean).join(" ")||undefined,
+    onPointerEnter:e=>{children.props.onPointerEnter?.(e);if(e.pointerType==="touch")return;hovered.current=true;show(e);},
+    onPointerLeave:e=>{children.props.onPointerLeave?.(e);hovered.current=false;scheduleClose();},
+    onFocus:e=>{children.props.onFocus?.(e);focused.current=true;show(e,true);},
+    onBlur:e=>{children.props.onBlur?.(e);focused.current=false;scheduleClose();},
+    onClick:e=>{children.props.onClick?.(e);if(e.pointerType==="touch")close();},
+  })}{open&&createPortal(<span id={id} role="tooltip" ref={bubble} className="cw-tooltip" style={{left:position?.left??8,top:position?.top??8,visibility:position?"visible":"hidden"}} onPointerEnter={()=>{bubbleHovered.current=true;clearTimeout(timer.current);}} onPointerLeave={()=>{bubbleHovered.current=false;scheduleClose();}}>{text}</span>,document.body)}</>;
+}
+
+export function ContactSkeleton({ history=false }) {
+  const bar=(width)=><span className="cw-skeleton-bar" style={{width}}/>;
+  const events=<div className="cw-skeleton-events" aria-hidden="true">{[0,1,2].map(i=><div key={i} className="cw-skeleton-event"><span className="cw-skeleton-dot"/><div>{bar("55%")}{bar("85%")}{bar("35%")}</div></div>)}</div>;
+  if(history)return <div className="cw-skeleton-history" role="status"><span className="cw-sr">Loading activity…</span>{events}</div>;
+  return <div className="cw-skeleton-layout" role="status" aria-busy="true"><span className="cw-sr">Loading contact…</span>
+    <div className="cw-panel cw-identity" aria-hidden="true"><span className="cw-skeleton-avatar"/><div className="cw-skeleton-identity">{bar("70%")}{bar("35%")}</div><span className="cw-skeleton-action"/></div>
+    <div className="cw-panel cw-skeleton-tabs" aria-hidden="true">{bar("96px")}{bar("120px")}</div>
+    <div className="cw-grid" aria-hidden="true"><div className="cw-panel cw-properties cw-skeleton-properties">{bar("45%")}{Array.from({length:6},(_,i)=><div className="cw-skeleton-property" key={i}>{bar("35%")}{bar("70%")}</div>)}</div><div className="cw-activity"><div className="cw-panel cw-skeleton-actions">{bar("35%")}<div>{[0,1,2].map(i=><span className="cw-skeleton-action" key={i}/>)}</div></div><div className="cw-panel cw-history-panel cw-skeleton-history">{bar("38%")}{events}</div></div></div>
+  </div>;
 }
