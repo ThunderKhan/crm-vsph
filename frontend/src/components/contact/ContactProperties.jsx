@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { memo, useId, useLayoutEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import { CopyGlyph, useCopyFeedback, Tooltip } from "./ContactMotion";
 import { Link } from "react-router-dom";
@@ -52,7 +52,7 @@ function PropertyGroup({ title, children }) {
   </section>;
 }
 
-export default function ContactProperties({ contact: c }) {
+function ContactProperties({ contact: c }) {
   const [allOpen,setAllOpen] = useState(false);
   const allId = useId();
   const phone = c.contact_mobile || c.contact_phone;
@@ -95,3 +95,5 @@ export default function ContactProperties({ contact: c }) {
     </div></div>
   </aside>;
 }
+
+export default memo(ContactProperties);

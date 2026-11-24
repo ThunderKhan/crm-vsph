@@ -1,6 +1,8 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { ArrowDownWideNarrow, ArrowUpWideNarrow, ArrowDownAZ, ArrowUpAZ, Check, ChevronDown, List, Mail, Phone, Plus, SlidersHorizontal, CheckCircle } from "lucide-react";
 
+import { menuFocusIndex } from "./contactMotionUtils.js";
+
 const sorts=[["newest","Newest first",ArrowDownWideNarrow],["oldest","Oldest first",ArrowUpWideNarrow],["az","Alphabetical (A–Z)",ArrowDownAZ],["za","Alphabetical (Z–A)",ArrowUpAZ]];
 const statuses=[["all","All statuses"],["TODO","Pending"],["IN_PROGRESS","In progress"],["BLOCKED","Blocked"],["COMPLETED","Completed"]];
 const priorities=[["all","All priorities"],["HIGH","High"],["NORMAL","Normal"],["LOW","Low"]];
@@ -76,8 +78,8 @@ export function AddActivityMenu({actions,onSelect,onOpen}) {
     else if(e.key==="Tab")close(true);
     else if(["ArrowDown","ArrowUp","Home","End"].includes(e.key)){
       e.preventDefault();const nodes=options(),i=nodes.indexOf(document.activeElement);
-      const next=e.key==="Home"?0:e.key==="End"?nodes.length-1:e.key==="ArrowDown"?(i+1)%nodes.length:(i<=0?nodes.length-1:i-1);
-      nodes[next]?.focus();
+      const next = menuFocusIndex(e.key, i, nodes.length);
+      if (next !== null) nodes[next]?.focus();
     }
   }
   return <div className="cw-menu-anchor cw-add-activity-anchor" ref={root} onKeyDown={keys}>

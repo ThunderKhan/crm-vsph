@@ -38,7 +38,7 @@ export function CopyGlyph({ copied }) {
 export function SaveGlyph({ state }) {
   if(state!=="pending" && state!=="saved") return null;
   return <span className="cw-save-glyph" aria-hidden="true">
-    {state==="pending" ? <span className="cw-saving-spinner"/> : state==="saved" ? <Check size={16} className="cw-save-check"/> : null}
+    {state==="pending" ? <span className="cw-saving-spinner"/> : <Check size={16} className="cw-save-check"/>}
   </span>;
 }
 

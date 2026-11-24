@@ -1,4 +1,8 @@
-export const present = (value) => value !== null && value !== undefined && String(value).trim() !== "" && !["—", "-"].includes(String(value).trim());
+export function present(value) {
+  if (value == null) return false;
+  const text = String(value).trim();
+  return text !== "" && text !== "—" && text !== "-";
+}
 
 export function humanize(value, fallback = "Not provided") {
   if (!present(value)) return fallback;
@@ -36,18 +40,20 @@ export function taskDueDate(date, time) {
   if (!Number.isFinite(result.getTime())) throw new Error("Enter a valid due date and time.");
   return result.toISOString();
 }
-export function activityHistory(calls, tasks, filter = "all") {
-  const items = [
-    ...calls.map((record) => ({ kind: "call", record, date: record.call_created_at })),
-    ...tasks.map((record) => ({ kind: "task", record, date: record.task_created_at })),
-  ];
-  const timestamp = (value) => { const ms = present(value) ? new Date(value).getTime() : NaN; return Number.isFinite(ms) ? ms : -Infinity; };
-  return items.filter((item) => filter === "all" || item.kind === filter)
-    .sort((a, b) => { const x = timestamp(a.date), y = timestamp(b.date); return x === y ? 0 : y - x; });
+export function activityHistory(calls, tasks, filter = "all", options = {}) {
+  const items = [];
+  if (filter === "all" || filter === "call") {
+    for (const record of calls) items.push({ kind: "call", record, date: record.call_created_at });
+  }
+  if (filter === "all" || filter === "task") {
+    for (const record of tasks) items.push({ kind: "task", record, date: record.task_created_at });
+  }
+  // Alphabetical ties retain newest-first order, as in the original timeline.
+  return selectActivity(items, options, true);
 }
 
 // Group by the same local calendar used by the displayed timestamps, not UTC.
-// Missing dates stay unknown; the input is already ordered newest-first.
+// Missing dates stay unknown; the input is already ordered by the selected chronology.
 export function groupActivityByDate(items) {
   const groups=new Map();
   for(const item of items) {
@@ -65,16 +71,50 @@ export function activityTime(value) {
   return Number.isFinite(date.getTime()) ? date.toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}) : "Time unavailable";
 }
 
-export function filterActivity(items,{query="",status="all",priority="all",sort="newest"}={}) {
-  const subject=item=>String(item.kind==="call"?item.record.call_subject||"":item.record.task_subject||"");
-  const q=query.trim().toLocaleLowerCase();
-  const time=item=>present(item.date) && Number.isFinite(new Date(item.date).getTime()) ? new Date(item.date).getTime() : null;
-  return items.filter(item=>(!q||subject(item).toLocaleLowerCase().includes(q)) &&
-    (item.kind==="task" ? (status==="all"||item.record.task_status===status)&&(priority==="all"||item.record.task_priority===priority) : status==="all"&&priority==="all"))
-    .sort((a,b)=>{
-      if(sort==="az"||sort==="za")return subject(a).localeCompare(subject(b),undefined,{sensitivity:"base"})*(sort==="za"?-1:1);
-      const x=time(a),y=time(b);
-      if(x===null||y===null)return x===y?0:x===null?1:-1;
-      return sort==="oldest"?x-y:y-x;
-    });
+export function filterActivity(items, options = {}) {
+  return selectActivity(items, options, false);
+}
+
+function selectActivity(items, { query = "", status = "all", priority = "all", sort = "newest" }, chronologicalTies) {
+  const search = query.trim().toLocaleLowerCase();
+  const alphabetical = sort === "az" || sort === "za";
+  const matching = [];
+  for (const item of items) {
+    const { kind, record } = item;
+    if (kind === "task") {
+      if (status !== "all" && record.task_status !== status) continue;
+      if (priority !== "all" && record.task_priority !== priority) continue;
+    } else if (status !== "all" || priority !== "all") {
+      continue;
+    }
+
+    const subject = String((kind === "call" ? record.call_subject : record.task_subject) || "");
+    if (search && !subject.toLocaleLowerCase().includes(search)) continue;
+
+    // Parse each matching record once instead of inside the sort comparator.
+    const timestamp = !alphabetical || chronologicalTies
+      ? (present(item.date) ? new Date(item.date).getTime() : NaN)
+      : NaN;
+    matching.push({ item, subject, timestamp: Number.isFinite(timestamp) ? timestamp : null });
+  }
+
+  const compareDates = (a, b, oldest = false) => {
+    if (a.timestamp === null || b.timestamp === null) {
+      if (a.timestamp === b.timestamp) return 0;
+      return a.timestamp === null ? 1 : -1;
+    }
+    return oldest ? a.timestamp - b.timestamp : b.timestamp - a.timestamp;
+  };
+
+  if (alphabetical) {
+    const collator = new Intl.Collator(undefined, { sensitivity: "base" });
+    const direction = sort === "za" ? -1 : 1;
+    matching.sort((a, b) =>
+      direction * collator.compare(a.subject, b.subject) ||
+      (chronologicalTies ? compareDates(a, b) : 0)
+    );
+  } else {
+    matching.sort((a, b) => compareDates(a, b, sort === "oldest"));
+  }
+  return matching.map(entry => entry.item);
 }

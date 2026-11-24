@@ -121,3 +121,7 @@ Expected 25 utility and 13 browser cases. Existing browser assertions updated to
 ### Post-layout final craft pass
 
 Expected 25 utility and 14 browser cases. Existing regressions retained. New case covers arrow navigation, accessible heading, 1024px filter bounds, existing labelled billing address rows, minimal-contact opportunity deep-link refresh and absence of horizontal overflow. Review both view skeletons and narrow/long content on real browser. All prior test commands remain unchanged. No rendered detector or browser pass claimed remotely.
+
+### Code-quality refactor acceptance
+
+Expected 27 utility tests and 14 browser tests. Previous browser assertions unchanged. New unit coverage checks single-pass selection, stable chronology/alphabetical ties, invalid dates, immutability and menu navigation boundaries. 432 deterministic comparisons against the preceding selection pipeline passed; available JS harness passed 17/18 workspace/motion tests (URL global unavailable for one existing case). Run all utility scripts, build, and npm run test:contact-browser locally. No measured browser speedup or full lint pass claimed.

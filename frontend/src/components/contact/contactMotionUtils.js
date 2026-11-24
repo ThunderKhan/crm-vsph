@@ -1,4 +1,3 @@
-// Small pure helpers shared by the contact motion controls and their tests.
 export function selectionIndicator(container, selected) {
   if (!container || !selected || selected.width <= 0) return null;
   return { x: selected.left - container.left, y: selected.bottom - container.top - 3, width: selected.width };
@@ -70,4 +69,15 @@ export function completionActor(task) {
   // Task detail/update returns audit entries newest first. Never substitute
   // the assignee or current viewer for the actual completing user.
   return task.task_updates?.find(update=>update.new_status==="COMPLETED" && update.previous_status!=="COMPLETED")?.user?.user_name || null;
+}
+
+export function menuFocusIndex(key, index, count) {
+  if (count <= 0) return null;
+  switch (key) {
+    case "Home": return 0;
+    case "End": return count - 1;
+    case "ArrowDown": return (index + 1) % count;
+    case "ArrowUp": return index <= 0 ? count - 1 : index - 1;
+    default: return null;
+  }
 }

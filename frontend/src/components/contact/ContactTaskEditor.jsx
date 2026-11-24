@@ -4,7 +4,7 @@ import { api } from "../../utils/api";
 import Modal from "../ui/Modal";
 import { SaveGlyph } from "./ContactMotion";
 import { useDialogExit } from "./useDialogExit";
-import { allowedTaskStatuses, assignableTaskUser, localTaskDue, taskEditPatch, taskStatusLabel } from "./contactMotionUtils.js";
+import { allowedTaskStatuses, assignableTaskUser, localTaskDue, taskEditPatch, taskStatusLabel, menuFocusIndex } from "./contactMotionUtils.js";
 
 export function TaskStatusControl({record,access,busy,onStatus}) {
   const options=allowedTaskStatuses(record,access);
@@ -12,7 +12,24 @@ export function TaskStatusControl({record,access,busy,onStatus}) {
   const root=useRef(null), trigger=useRef(null), menu=useRef(null), id=useId();
   const optionNodes=()=>Array.from(menu.current?.querySelectorAll("button")||[]);
   function show(last=false){if(busy)return;setOpen(true);requestAnimationFrame(()=>{const nodes=optionNodes();nodes[last?nodes.length-1:0]?.focus();});}
-  function keys(e){if(!open)return;if(e.key==="Escape"){e.preventDefault();e.stopPropagation();setOpen(false);trigger.current?.focus();}else if(e.key==="Tab"){setOpen(false);trigger.current?.focus();}else if(["ArrowDown","ArrowUp","Home","End"].includes(e.key)){e.preventDefault();const nodes=optionNodes(),i=nodes.indexOf(document.activeElement);nodes[e.key==="Home"?0:e.key==="End"?nodes.length-1:e.key==="ArrowDown"?(i+1)%nodes.length:(i<=0?nodes.length-1:i-1)]?.focus();}}
+  function keys(event) {
+    if (!open) return;
+    if (event.key === "Escape" || event.key === "Tab") {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      setOpen(false);
+      trigger.current?.focus();
+      return;
+    }
+    const nodes = optionNodes();
+    const next = menuFocusIndex(event.key, nodes.indexOf(document.activeElement), nodes.length);
+    if (next !== null) {
+      event.preventDefault();
+      nodes[next]?.focus();
+    }
+  }
   useEffect(()=>{
     if(!open)return;
     const outside=e=>{if(!root.current?.contains(e.target))setOpen(false);};

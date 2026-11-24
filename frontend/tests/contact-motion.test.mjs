@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { selectionIndicator, activityKey, requiredActivityFields, taskStatusLabel, nextTaskCompletion, completionActor, allowedTaskStatuses, canManageTaskDetails, assignableTaskUser, taskEditPatch, localTaskDue } from "../src/components/contact/contactMotionUtils.js";
+import { selectionIndicator, activityKey, requiredActivityFields, taskStatusLabel, nextTaskCompletion, completionActor, allowedTaskStatuses, canManageTaskDetails, assignableTaskUser, taskEditPatch, localTaskDue, menuFocusIndex } from "../src/components/contact/contactMotionUtils.js";
 
 test("indicator follows actual tab bounds including wrapped rows",()=>{
   assert.deepEqual(selectionIndicator({left:10,top:20},{left:30,bottom:64,width:90}),{x:20,y:41,width:90});
@@ -57,4 +57,16 @@ test("task editor emits changed fields only and preserves untouched precise due 
   assert.deepEqual(taskEditPatch(record,draft),{});
   assert.deepEqual(taskEditPatch(record,{...draft,subject:" Revised ",priority:"HIGH",assignee:"v",due:""}),{task_subject:"Revised",task_priority:"HIGH",task_user_fk:"v",task_due_date:null});
   assert.throws(()=>taskEditPatch(record,{...draft,subject:" "}),/task subject/);
+});
+
+test("menu navigation wraps, handles an unfocused item and ignores other keys", () => {
+  assert.equal(menuFocusIndex("ArrowDown",-1,3),0);
+  assert.equal(menuFocusIndex("ArrowUp",-1,3),2);
+  assert.equal(menuFocusIndex("ArrowDown",2,3),0);
+  assert.equal(menuFocusIndex("ArrowUp",0,3),2);
+  assert.equal(menuFocusIndex("ArrowDown",0,3),1);
+  assert.equal(menuFocusIndex("Home",2,3),0);
+  assert.equal(menuFocusIndex("End",0,3),2);
+  assert.equal(menuFocusIndex("Enter",0,3),null);
+  assert.equal(menuFocusIndex("ArrowDown",-1,0),null);
 });

@@ -255,3 +255,7 @@ User approved the two-column concept: compact identity card above persistent con
 ## 27. Final post-layout skill-led polish — 24 November 2026
 
 Repeat Impeccable/Unslop and companion skill guidance on the persistent workspace. Restore semantic heading and switch keyboard navigation, stabilize intermediate-width toolbar and skeleton variants, tighten existing internal spacing and preserve preview scenario on reload. No structural redesign, feature expansion, backend, dependency or DESIGN.md change. Audit addendum in log/contact-workspace-design-audit.md. Source checks only; local browser/build pending.
+
+## 28. Code-quality / anti-slop refactor — 24 November 2026
+
+Applied Cursor Deslop, Addy Osmani Code Simplification, Vercel React Best Practices and AsyrafHussin Code Slop Detection to contact workspace source. Keep UI, styles, endpoint contracts, permissions, error messages and existing motion. Consolidate activity selection into one sort with dates parsed once per matching record; preserve chronological tie ordering for alphabetical display, unknown dates last and input immutability. Memoize derived timeline items/groups and stable contact details. Share menu focus-index logic across three menus; ignore closed overflow-menu key events. Simplify redundant branches and repeated conditions without removing genuine validation or async guards. Added two unit regressions; deterministic equivalence checks against previous pipeline across 432 combinations. See log/contact-workspace-code-audit.md. Local build/lint/browser validation remains pending.

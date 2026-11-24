@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, MoreHorizontal, Phone, CheckCircle, FileText, Copy, Trash2, UserPlus, ChevronDown, Search, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSearchParams } from "react-router-dom";
@@ -12,8 +12,8 @@ import { ActivityFilters, AddActivityMenu } from "./contact/ActivityToolbar";
 import { ActivityComposerDialog } from "./contact/ActivityComposerDialog";
 import { ContactTaskEditor, TaskStatusControl } from "./contact/ContactTaskEditor";
 import { useDialogExit } from "./contact/useDialogExit";
-import { activityKey, requiredActivityFields, nextTaskCompletion, completionActor, allowedTaskStatuses, canManageTaskDetails } from "./contact/contactMotionUtils.js";
-import { activityHistory, groupActivityByDate, activityTime, filterActivity, contactName, emailLink, usableEmail, formatDate, humanize, taskDueDate } from "./contact/contactWorkspaceUtils.js";
+import { activityKey, requiredActivityFields, nextTaskCompletion, completionActor, allowedTaskStatuses, canManageTaskDetails, menuFocusIndex } from "./contact/contactMotionUtils.js";
+import { activityHistory, groupActivityByDate, activityTime, contactName, emailLink, usableEmail, formatDate, humanize, taskDueDate } from "./contact/contactWorkspaceUtils.js";
 import "./contact/contactWorkspace.css";
 
 const errorMessage = (response, fallback) => response?.message || response?.error || fallback;
@@ -36,13 +36,14 @@ function MoreActions({ canEdit, canDelete, onCampaign, onDelete, code }) {
   }, [open]);
   function items() { return Array.from(menu.current?.querySelectorAll("button:not(:disabled)") || []); }
   function keyDown(event) {
+    if (!open) return;
     if (event.key === "Escape") { event.preventDefault(); close(true); }
     if (event.key === "Tab") { close(true); return; }
     if (["ArrowDown","ArrowUp","Home","End"].includes(event.key)) {
       event.preventDefault();
       const buttons = items(), index = buttons.indexOf(document.activeElement);
-      const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length-1 : event.key === "ArrowDown" ? (index+1)%buttons.length : (index<=0 ? buttons.length-1 : index-1);
-      buttons[next]?.focus();
+      const next = menuFocusIndex(event.key, index, buttons.length);
+      if (next !== null) buttons[next]?.focus();
     }
   }
   const openMenu = (last = false) => {
@@ -200,16 +201,23 @@ function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTask
   const {sort,status,priority,query,setQuery,searchOpen,searchId,searchRef,closeSearch,expandedKeys,toggle,resetFilters}=view;
   const taskFilters=filter!=="call" && canViewTasks;
   const activeStatus=taskFilters?status:"all", activePriority=taskFilters?priority:"all";
-  const items=filterActivity(activityHistory(calls,tasks,filter),{query,status:activeStatus,priority:activePriority,sort});
-  const alphabetical=sort==="az"||sort==="za";
-  const groups=alphabetical?[{key:"alphabetical",label:null,items}]:groupActivityByDate(items);
+  const items = useMemo(
+    () => activityHistory(calls, tasks, filter, { query, status: activeStatus, priority: activePriority, sort }),
+    [calls, tasks, filter, query, activeStatus, activePriority, sort]
+  );
+  const alphabetical = sort === "az" || sort === "za";
+  const groups = useMemo(
+    () => alphabetical ? [{ key: "alphabetical", label: null, items }] : groupActivityByDate(items),
+    [alphabetical, items]
+  );
+  const hasFilters = Boolean(query.trim()) || activeStatus !== "all" || activePriority !== "all";
   return <>
     <h2 className="cw-sr">Activity history</h2>
     <Expandable id={searchId} open={searchOpen}><div className="cw-history-search"><Search size={18} aria-hidden="true"/><input ref={searchRef} type="search" aria-label="Search activity subjects" placeholder="Search activities…" value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Escape")closeSearch();}}/><button type="button" className="cw-icon" aria-label="Close search" onClick={closeSearch}><X size={18} aria-hidden="true"/></button></div></Expandable>
     <SlidingTabs className="cw-history-tabs" label="Filter activity" options={[["all","All activity"],["call","Calls"],...(canViewTasks ? [["task","Tasks"]] : [])]} value={filter} onChange={setFilter}/>
     {feedback&&<p className="cw-feedback cw-history-feedback" role="status"><CheckCircle size={16} aria-hidden="true"/>{feedback}{lastCreated&&!items.some(item=>activityKey(item.kind,item.record)===lastCreated)&&" It is hidden by your current view or permissions."}</p>}
     {error && <div className="cw-error cw-history-error" role="alert">{error} <button type="button" className="cw-link" onClick={onRetry}>Retry</button></div>}
-    {loading ? <ContactSkeleton history/> : items.length===0 ? <div className="cw-empty cw-history-empty"><FileText size={32} strokeWidth={1.75} aria-hidden="true"/><h3>{error ? "Activity unavailable" : (query.trim()||activeStatus!=="all"||activePriority!=="all") ? "No matching activities" : filter==="all" ? "Activity history appears here" : filter==="call" ? "No calls yet" : "No tasks yet"}</h3><p>{error ? "Retry to load the history." : (query.trim()||activeStatus!=="all"||activePriority!=="all") ? "Try changing your filters or search query." : filter==="all" ? "Calls and tasks in chronological order." : "Recorded interactions will appear here."}</p>{!error&&(query.trim()||activeStatus!=="all"||activePriority!=="all")&&<button type="button" className="cw-button" onClick={()=>{resetFilters();setQuery("");}}>Clear filters</button>}</div> :
+    {loading ? <ContactSkeleton history/> : items.length===0 ? <div className="cw-empty cw-history-empty"><FileText size={32} strokeWidth={1.75} aria-hidden="true"/><h3>{error ? "Activity unavailable" : hasFilters ? "No matching activities" : filter==="all" ? "Activity history appears here" : filter==="call" ? "No calls yet" : "No tasks yet"}</h3><p>{error ? "Retry to load the history." : hasFilters ? "Try changing your filters or search query." : filter==="all" ? "Calls and tasks in chronological order." : "Recorded interactions will appear here."}</p>{!error&&hasFilters&&<button type="button" className="cw-button" onClick={()=>{resetFilters();setQuery("");}}>Clear filters</button>}</div> :
       <div className="cw-timeline">{groups.map(group=><section className="cw-timeline-group" key={group.key}>
         {group.label&&<h3 className="cw-timeline-date">{group.label}</h3>}
         <ol className="cw-timeline-list">{group.items.map(item=>{

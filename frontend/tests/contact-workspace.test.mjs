@@ -71,3 +71,24 @@ test("activity search, task filters and global alphabetical sorting compose",()=
   assert.deepEqual(filterActivity(items,{status:"TODO",priority:"LOW"}),[]);
   assert.deepEqual(names(filterActivity(items,{query:"beta"})),["Beta call"]);
 });
+
+test("combined selection preserves chronological ties, missing dates and input records", () => {
+  const calls = Object.freeze([
+    Object.freeze({call_id:"c-old",call_subject:"Same subject",call_created_at:"2026-11-20T12:00:00Z"}),
+    Object.freeze({call_id:"c-tie",call_subject:"Same subject",call_created_at:"2026-11-24T12:00:00Z"}),
+    Object.freeze({call_id:"c-missing",call_subject:"Same subject",call_created_at:null}),
+  ]);
+  const tasks = Object.freeze([
+    Object.freeze({task_id:"t-new",task_subject:"same subject",task_status:"TODO",task_priority:"HIGH",task_created_at:"2026-11-25T12:00:00Z"}),
+    Object.freeze({task_id:"t-tie",task_subject:"Same subject",task_status:"COMPLETED",task_priority:"LOW",task_created_at:"2026-11-24T12:00:00Z"}),
+    Object.freeze({task_id:"t-invalid",task_subject:"Other",task_status:"TODO",task_priority:"HIGH",task_created_at:"invalid"}),
+  ]);
+  const ids = rows => rows.map(({record}) => record.call_id || record.task_id);
+  assert.deepEqual(ids(activityHistory(calls,tasks,"all",{sort:"newest"})),["t-new","c-tie","t-tie","c-old","c-missing","t-invalid"]);
+  assert.deepEqual(ids(activityHistory(calls,tasks,"all",{sort:"oldest"})),["c-old","c-tie","t-tie","t-new","c-missing","t-invalid"]);
+  assert.deepEqual(ids(activityHistory(calls,tasks,"all",{sort:"az"})),["t-invalid","t-new","c-tie","t-tie","c-old","c-missing"]);
+  assert.deepEqual(ids(activityHistory(calls,tasks,"all",{sort:"za"})),["t-new","c-tie","t-tie","c-old","c-missing","t-invalid"]);
+  assert.deepEqual(ids(activityHistory(calls,tasks,"all",{query:" SAME ",status:"TODO",priority:"HIGH"})),["t-new"]);
+  assert.deepEqual(ids(activityHistory(calls,tasks,"call",{status:"TODO"})),[]);
+  assert.equal(activityHistory(calls,tasks)[0].record,tasks[0]);
+});
