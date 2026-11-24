@@ -1,4 +1,4 @@
-const LOGO_URL = "https://app.vsph.in/crmlogo.png";
+const LOGO_URL = "https://app.vsph.in/vsph-logo-white.png";
 const COMPANY_NAME = "VSPH";
 const COMPANY_TAGLINE = "Innovation. Technology. People.";
 const COMPANY_WEBSITE = "vsph.in";
@@ -8,8 +8,7 @@ const header = () => `
   <tr>
     <td align="center" style="background:#001B44;padding:30px 20px;">
       <a href="${COMPANY_WEBSITE}" style="text-decoration:none;">
-        <img src="${LOGO_URL}" alt="${COMPANY_NAME}" style="width:150px;height:auto;display:block;" border="0">
-        <span style="font-family:Inter,sans-serif;font-size:24px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;margin-left:12px;">VSPH</span>
+        <img src="${LOGO_URL}" alt="${COMPANY_NAME}" style="width:200px;height:auto;display:block;" border="0">
       </a>
     </td>
   </tr>
