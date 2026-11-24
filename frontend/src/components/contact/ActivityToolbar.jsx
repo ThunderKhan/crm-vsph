@@ -1,0 +1,86 @@
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { ArrowDownWideNarrow, ArrowUpWideNarrow, ArrowDownAZ, ArrowUpAZ, Check, ChevronDown, List, Mail, Phone, Plus, SlidersHorizontal, CheckCircle } from "lucide-react";
+
+const sorts=[["newest","Newest first",ArrowDownWideNarrow],["oldest","Oldest first",ArrowUpWideNarrow],["az","Alphabetical (A–Z)",ArrowDownAZ],["za","Alphabetical (Z–A)",ArrowUpAZ]];
+const statuses=[["all","All statuses"],["TODO","Pending"],["IN_PROGRESS","In progress"],["BLOCKED","Blocked"],["COMPLETED","Completed"]];
+const priorities=[["all","All priorities"],["HIGH","High"],["NORMAL","Normal"],["LOW","Low"]];
+
+function Options({legend,options,value,onChange,type}) {
+  const id=useId();
+  return <fieldset className={"cw-filter-options cw-filter-"+type}>
+    <legend>{legend}</legend>
+    <div className="cw-filter-option-list">{options.map(([key,label,Icon])=><label key={key} data-selected={value===key} className="cw-filter-option">
+      <input type="radio" name={id} value={key} checked={value===key} onChange={()=>onChange(key)}/>
+      {type==="sort"&&<Icon size={16} aria-hidden="true"/>}
+      {type==="status"&&(key==="all"?<List size={16} aria-hidden="true"/>:<span className="cw-filter-status-dot" data-status={key} aria-hidden="true"/>)}
+      <span>{label}</span>
+      {type!=="priority"&&<Check size={16} className="cw-filter-option-check" aria-hidden="true"/>}
+    </label>)}</div>
+  </fieldset>;
+}
+
+export function ActivityFilters({open,onOpen,sort,setSort,status,setStatus,priority,setPriority,taskFilters,count,onReset}) {
+  const root=useRef(null), trigger=useRef(null), id=useId();
+  const [placement,setPlacement]=useState({side:"bottom",height:480});
+  useLayoutEffect(()=>{
+    if(!open)return;
+    function measure(){
+      const rect=root.current?.getBoundingClientRect();
+      if(!rect)return;
+      const below=window.innerHeight-rect.bottom-16, above=rect.top-16;
+      const side=below<320&&above>below?"top":"bottom";
+      setPlacement({side,height:Math.max(96,side==="top"?above:below)});
+    }
+    measure();window.addEventListener("resize",measure);window.addEventListener("scroll",measure,true);
+    return ()=>{window.removeEventListener("resize",measure);window.removeEventListener("scroll",measure,true);};
+  },[open]);
+  useEffect(()=>{
+    if(!open)return;
+    const outside=e=>{if(!root.current?.contains(e.target))onOpen(false);};
+    const escape=e=>{if(e.key==="Escape"){e.preventDefault();onOpen(false);trigger.current?.focus();}};
+    document.addEventListener("pointerdown",outside);document.addEventListener("keydown",escape);
+    return ()=>{document.removeEventListener("pointerdown",outside);document.removeEventListener("keydown",escape);};
+  },[open,onOpen]);
+  return <div className="cw-filter-anchor cw-menu-anchor" ref={root}>
+    <button ref={trigger} type="button" className="cw-button cw-filter-button" aria-expanded={open} aria-controls={id} onClick={()=>onOpen(!open)}><SlidersHorizontal size={16} aria-hidden="true"/> Filter{count>0&&<span className="cw-filter-count" aria-label={count+" active filters"}>{count}</span>}</button>
+    <div id={id} className="cw-menu cw-filter-menu" data-open={open} data-align="right" data-side={placement.side} style={{"--cw-filter-height":placement.height+"px"}} inert={!open} aria-hidden={!open}>
+      <div className="cw-filter-heading"><strong>Filter and sort</strong><button type="button" className="cw-filter-reset" onClick={onReset}>Reset filters</button></div>
+      <div className="cw-filter-scroll">
+        <Options legend="Sort by" type="sort" options={sorts} value={sort} onChange={setSort}/>
+        {taskFilters&&<><Options legend="Task status" type="status" options={statuses} value={status} onChange={setStatus}/><Options legend="Priority" type="priority" options={priorities} value={priority} onChange={setPriority}/></>}
+      </div>
+      <div className="cw-filter-footer">{count?count+" active "+(count===1?"selection":"selections"):"Default view"}<span>Applied instantly</span></div>
+    </div>
+  </div>;
+}
+
+export function AddActivityMenu({actions,onSelect,onOpen}) {
+  const [open,setOpen]=useState(false);
+  const root=useRef(null),trigger=useRef(null),menu=useRef(null),id=useId();
+  const icons={call:Phone,task:CheckCircle,email:Mail};
+  const options=()=>Array.from(menu.current?.querySelectorAll('[role="menuitem"]')||[]);
+  function show(last=false){onOpen?.();setOpen(true);requestAnimationFrame(()=>{const nodes=options();nodes[last?nodes.length-1:0]?.focus();});}
+  function close(focus=false){setOpen(false);if(focus)trigger.current?.focus();}
+  useEffect(()=>{
+    if(!open)return;
+    const outside=e=>{if(!root.current?.contains(e.target))setOpen(false);};
+    document.addEventListener("pointerdown",outside);
+    return ()=>document.removeEventListener("pointerdown",outside);
+  },[open]);
+  function keys(e){
+    if(!open)return;
+    if(e.key==="Escape"){e.preventDefault();close(true);}
+    else if(e.key==="Tab")close(true);
+    else if(["ArrowDown","ArrowUp","Home","End"].includes(e.key)){
+      e.preventDefault();const nodes=options(),i=nodes.indexOf(document.activeElement);
+      const next=e.key==="Home"?0:e.key==="End"?nodes.length-1:e.key==="ArrowDown"?(i+1)%nodes.length:(i<=0?nodes.length-1:i-1);
+      nodes[next]?.focus();
+    }
+  }
+  return <div className="cw-menu-anchor cw-add-activity-anchor" ref={root} onKeyDown={keys}>
+    <button type="button" ref={trigger} className="cw-button cw-primary cw-add-activity" aria-haspopup="menu" aria-expanded={open} aria-controls={id} onClick={()=>open?close(true):show()} onKeyDown={e=>{if(!open&&["ArrowDown","ArrowUp"].includes(e.key)){e.preventDefault();e.stopPropagation();show(e.key==="ArrowUp");}}}><Plus size={18} aria-hidden="true"/> Add activity <ChevronDown className="cw-chevron" size={16} aria-hidden="true"/></button>
+    <div ref={menu} id={id} className="cw-menu cw-add-menu" role="menu" aria-label="Add activity" data-open={open} data-align="right" inert={!open} aria-hidden={!open}>
+      {actions.map(({id:kind,label})=>{const Icon=icons[kind];return <button type="button" key={kind} role="menuitem" onClick={()=>{close(true);onSelect(kind,trigger.current);}}><Icon size={16} aria-hidden="true"/>{label}</button>;})}
+    </div>
+  </div>;
+}
