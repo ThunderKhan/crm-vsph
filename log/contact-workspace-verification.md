@@ -101,3 +101,7 @@ Local evidence at `c7c38f7`: 20/20 utility tests and production build passed (53
 ### Expandable activity timeline
 
 Baseline `2bad0ab`: user confirmed 6/6 browser scenarios (23.4s); prior build and 20 utility tests passed. New scope adds one utility test and one browser test (21 utility / 7 browser expected). Confirm local day groups, newest-first ordering, unknown dates, compact collapsed nodes, independent disclosures and checkboxes, keyboard operation, semantic status colors, audited completion in expanded details, status failure visibility and narrow viewports. Browser suite uses a fixed Asia/Kolkata timezone for reproducible fixture dates. Run all utility suites, build, and `npm run test:contact-browser`. No live API/browser validation claimed for this revision until rerun.
+
+### Round 2 feedback acceptance
+
+Six approved feedback items implemented: no date divider lines; no progress cursor; morphing checkbox loader; full-width disclosure; functional search, sort and task filters; editable status and task details. Verify checkbox and status selector never toggle expansion, both filters and global alphabetical ordering compose, Escape and focus work, edits persist and invalid changes do not overwrite data, permissions and failure handling remain intact. Expected 25 utility tests (9 workspace, 9 fixture, 7 motion) and 9 browser cases. Run all utility scripts, `npm run build` and `npm run test:contact-browser`. Full Vite and browser validation not yet performed for this revision.

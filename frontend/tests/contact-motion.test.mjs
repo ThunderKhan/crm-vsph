@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { selectionIndicator, activityKey, requiredActivityFields, taskStatusLabel, nextTaskCompletion, completionActor } from "../src/components/contact/contactMotionUtils.js";
+import { selectionIndicator, activityKey, requiredActivityFields, taskStatusLabel, nextTaskCompletion, completionActor, allowedTaskStatuses, canManageTaskDetails, assignableTaskUser, taskEditPatch, localTaskDue } from "../src/components/contact/contactMotionUtils.js";
 
 test("indicator follows actual tab bounds including wrapped rows",()=>{
   assert.deepEqual(selectionIndicator({left:10,top:20},{left:30,bottom:64,width:90}),{x:20,y:41,width:90});
@@ -37,4 +37,24 @@ test("completion attribution comes from the audit actor, not task owner",()=>{
   assert.equal(completionActor(task),"Completing user");
   assert.equal(completionActor({...task,task_updates:[]}),null);
   assert.equal(completionActor({...task,task_status:"IN_PROGRESS"}),null);
+});
+
+test("status dropdown respects employee transitions and task editing permissions",()=>{
+  const task={task_id:"t",task_user_fk:"u",task_status:"BLOCKED"};
+  const employee={canEdit:true,role:"EMPLOYEE",userId:"u"};
+  assert.deepEqual(allowedTaskStatuses(task,employee),["BLOCKED","TODO","IN_PROGRESS"]);
+  assert.equal(canManageTaskDetails(task,employee),false);
+  assert.deepEqual(allowedTaskStatuses(task,{...employee,userId:"other"}),[]);
+  const admin={canEdit:true,role:"ORG_ADMIN"};
+  assert.equal(canManageTaskDetails(task,admin),true);
+  assert.equal(assignableTaskUser({user_id:"a",user_role:"ADMIN"},"ORG_ADMIN"),false);
+  assert.equal(assignableTaskUser({user_id:"a",user_role:"USER",tenant_fk:"other"},"PLATFORM_SUPERADMIN","tenant"),false);
+  assert.equal(assignableTaskUser({user_id:"a",user_role:"USER",tenant_fk:"tenant"},"PLATFORM_SUPERADMIN","tenant"),true);
+});
+test("task editor emits changed fields only and preserves untouched precise due timestamps",()=>{
+  const record={task_subject:"Demo",task_description:"Notes",task_priority:"NORMAL",task_user_fk:"u",task_due_date:"2026-11-24T12:03:44.000Z"};
+  const draft={subject:"Demo",description:"Notes",priority:"NORMAL",assignee:"u",due:localTaskDue(record.task_due_date)};
+  assert.deepEqual(taskEditPatch(record,draft),{});
+  assert.deepEqual(taskEditPatch(record,{...draft,subject:" Revised ",priority:"HIGH",assignee:"v",due:""}),{task_subject:"Revised",task_priority:"HIGH",task_user_fk:"v",task_due_date:null});
+  assert.throws(()=>taskEditPatch(record,{...draft,subject:" "}),/task subject/);
 });

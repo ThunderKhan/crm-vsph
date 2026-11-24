@@ -97,3 +97,18 @@ test("task completion persists, records the audit actor and supports reopening",
   assert.equal((await s.request("PATCH",path,{task_status:"INVALID"})).success,false);
   assert.equal((await s.request("GET",path)).data.task_status,"IN_PROGRESS");
 });
+
+test("task detail edits persist without altering status, progress or audit history",async()=>{
+  const s=make(),path="/api/tasks/preview-task-2";
+  assert.equal((await s.request("GET","/api/users")).data.length,2);
+  s.failNextWrite();
+  assert.equal((await s.request("PATCH",path,{task_subject:"Edited"})).success,false);
+  assert.equal((await s.request("GET",path)).data.task_subject,"Schedule product demonstration");
+  const changed=(await s.request("PATCH",path,{task_subject:"Edited",task_description:"Updated notes",task_priority:"HIGH",task_due_date:null,task_user_fk:"preview-user-2"})).data;
+  assert.equal(changed.task_subject,"Edited");
+  assert.equal(changed.user.user_name,"Maya Rao");
+  assert.equal(changed.task_status,"TODO");
+  assert.equal(changed.task_updates.length,0);
+  assert.equal((await s.request("PATCH",path,{task_user_fk:"unknown"})).success,false);
+  assert.equal((await s.request("GET",path)).data.task_user_fk,"preview-user-2");
+});

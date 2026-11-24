@@ -291,7 +291,8 @@
 .cw-event-top h3 { flex:1; min-width:0; overflow-wrap:anywhere; transition:color var(--motion-micro) var(--ease-out),text-decoration-color var(--motion-micro) var(--ease-out); text-decoration:line-through; text-decoration-color:transparent; }
 .cw-timeline-item[data-completed="true"] .cw-event-top h3 { color:#52647a; text-decoration-color:currentColor; }
 .cw-task-status { font-weight:600; color:#52647a; transition:color var(--motion-micro) var(--ease-out); }
-.cw-task-status[data-status="TODO"],.cw-task-status[data-status="PENDING"],.cw-task-status[data-status="BLOCKED"] { color:#d1242f; }
+.cw-task-status[data-status="TODO"],.cw-task-status[data-status="PENDING"] { color:#d1242f; }
+.cw-task-status[data-status="BLOCKED"] { color:#9a6700; }
 .cw-task-status[data-status="IN_PROGRESS"] { color:#0069c8; }
 .cw-task-status[data-status="COMPLETED"],.cw-completion-meta dd { color:#1a7f37; }
 .cw-task-check { width:44px; height:44px; flex:none; display:grid; place-items:center; border:0; border-radius:6px; background:transparent; cursor:pointer; color:#52647a; transition:background-color var(--motion-micro) var(--ease-out),transform var(--motion-fast) var(--ease-out); }
@@ -359,3 +360,15 @@
 .cw-history-search input { flex:1; }
 .cw-history-search .cw-icon { border-color:transparent; }
 @media(max-width:480px) { .cw-history-search { padding-inline:16px; } }
+
+/* Independent status selector and a focused, permission-aware edit dialog. */
+.cw-task-status-anchor { pointer-events:auto; z-index:3; min-width:0; }
+.cw-task-status-trigger { display:inline-flex; align-items:center; gap:4px; min-height:44px; padding:0 4px; border:0; border-radius:4px; background:transparent; font:inherit; font-weight:600; cursor:pointer; }
+.cw-task-status-trigger[aria-disabled="true"] { cursor:default; }
+.cw-status-menu { min-width:180px; z-index:30; }
+.cw-status-menu button { justify-content:space-between; }
+.cw-status-selected { color:#52647a; }
+.cw-task-edit-form { padding:24px; border-top:0; }
+.cw-task-edit-form input,.cw-task-edit-form textarea,.cw-task-edit-form select { width:100%; border:1px solid #aebbc8; padding:8px 12px; background:white; }
+.cw-edit-dialog:has(.cw-task-edit-form) { width:min(560px,calc(100vw - 32px)); }
+.cw-edit-dialog .cw-save-button[data-state="pending"] { cursor:default; }

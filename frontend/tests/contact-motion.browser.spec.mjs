@@ -114,7 +114,7 @@ test("task completion is confirmed by API, persists across filters and preserves
   await page.goto(url);
   const row=page.locator(".cw-timeline-item").filter({has:page.getByRole("heading",{name:"Schedule product demonstration",exact:true})});
   const check=row.getByRole("checkbox",{name:"Complete task: Schedule product demonstration"});
-  await expect(row.getByText("Pending",{exact:true})).toHaveCSS("color","rgb(209, 36, 47)");
+  await expect(row.locator(".cw-task-status-trigger > span")).toHaveCSS("color","rgb(209, 36, 47)");
   await expect(check).not.toBeChecked();
   await expect(page.getByRole("button",{name:"Log call",exact:true})).toHaveCount(0);
   await page.getByRole("button",{name:"Log a call",exact:true}).click();
@@ -127,7 +127,7 @@ test("task completion is confirmed by API, persists across filters and preserves
   await expect(check).not.toBeChecked();
   await check.click();
   await expect(check).toBeChecked();
-  await expect(row.getByText("Completed",{exact:true})).toHaveCSS("color","rgb(26, 127, 55)");
+  await expect(row.locator(".cw-task-status-trigger > span")).toHaveCSS("color","rgb(26, 127, 55)");
   const disclosure=row.getByRole("button",{name:"Expand details: Schedule product demonstration"});
   await expect(disclosure).toHaveAttribute("aria-expanded","false");
   await disclosure.click();
@@ -138,7 +138,7 @@ test("task completion is confirmed by API, persists across filters and preserves
   await expect(check).toBeChecked();
   await check.click();
   await expect(check).not.toBeChecked();
-  await expect(row.getByText("In progress",{exact:true})).toBeVisible();
+  await expect(row.locator(".cw-task-status-trigger > span")).toHaveText("In progress");
   await expect(row.locator(".cw-completion-meta")).toHaveCount(0);
 });
 
@@ -177,6 +177,7 @@ test("full header disclosure, search and activity filters work together",async({
   await disclosure.click({position:{x:12,y:15}});
   await expect(row.getByRole("button",{name:"Collapse details: Schedule product demonstration"})).toHaveAttribute("aria-expanded","true");
   await expect(history.locator(".cw-timeline-date").first()).toHaveCSS("display","flex");
+  expect(await history.locator(".cw-timeline-date").first().evaluate(el=>getComputedStyle(el,"::after").content)).toBe("none");
   await history.getByRole("button",{name:"Filter",exact:true}).click();
   await history.getByLabel("Sort by").selectOption("az");
   await expect(history.locator(".cw-timeline-date")).toHaveCount(0);
@@ -192,4 +193,35 @@ test("full header disclosure, search and activity filters work together",async({
   await expect(history.locator(".cw-timeline-item")).toHaveCount(2);
   await history.getByRole("button",{name:"Close search"}).click();
   await expect(history.locator(".cw-timeline-item")).toHaveCount(4);
+});
+
+test("status menu and task editor persist real changes independently of disclosure",async({page})=>{
+  await page.goto(url);
+  const history=page.getByRole("region",{name:"Activity history"});
+  const row=history.locator(".cw-timeline-item").filter({has:page.getByRole("heading",{name:"Schedule product demonstration",exact:true})});
+  await row.getByRole("button",{name:"Change status: Schedule product demonstration"}).click();
+  await row.getByRole("button",{name:"In progress",exact:true}).click();
+  await expect(row.locator(".cw-task-status-trigger")).toHaveText("In progress");
+  await expect(row.getByRole("button",{name:"Expand details: Schedule product demonstration"})).toHaveAttribute("aria-expanded","false");
+  await row.getByRole("button",{name:"Expand details: Schedule product demonstration"}).click();
+  await row.getByRole("button",{name:"Edit task",exact:true}).click();
+  const dialog=page.getByRole("dialog",{name:"Edit task"});
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel("Task subject").fill("Revised product demonstration");
+  await dialog.getByLabel("Description").fill("Revised notes");
+  await dialog.getByLabel("Priority").selectOption("HIGH");
+  await dialog.getByLabel("Assignee").selectOption("preview-user-2");
+  await dialog.getByRole("button",{name:"Save changes"}).click();
+  await expect(dialog).toHaveCount(0);
+  const updated=history.locator(".cw-timeline-item").filter({has:page.getByRole("heading",{name:"Revised product demonstration",exact:true})});
+  await expect(updated.getByText("Revised notes",{exact:true})).toBeVisible();
+  await expect(updated.getByText("Maya Rao",{exact:true})).toBeVisible();
+  await expect(updated.locator(".cw-task-status-trigger")).toHaveText("In progress");
+  await expect(updated.getByRole("button",{name:"Edit task"})).toBeFocused();
+  await updated.getByRole("button",{name:"Edit task"}).click();
+  await dialog.getByLabel("Task subject").fill(" ");
+  await dialog.getByRole("button",{name:"Save changes"}).click();
+  await expect(dialog.getByRole("alert")).toHaveText("Enter a task subject.");
+  await dialog.getByRole("button",{name:"Cancel"}).click();
+  await expect(updated.getByRole("heading",{name:"Revised product demonstration"})).toBeVisible();
 });

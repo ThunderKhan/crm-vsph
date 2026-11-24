@@ -17,6 +17,7 @@ export const PREVIEW_SCENARIOS = Object.freeze([
   { id: "preview-contact-reference", label: "Reference layout" },
 ]);
 
+const previewUsers=[{...PREVIEW_USER,user_role:"USER",user_status:true,tenant_fk:"preview-tenant"},{user_id:"preview-user-2",user_name:"Maya Rao",user_role:"USER",user_status:true,tenant_fk:"preview-tenant"}];
 const copy = value => JSON.parse(JSON.stringify(value));
 const account = { account_id: "preview-account-meridian", account_name: "Meridian Hospitality Group", account_email: "contact@meridian.example.com", account_phone: "+1 202-555-0101", account_website: "https://meridian.example.com", account_city: "Mumbai", account_country: "India", account_account_status: "ACTIVE" };
 const campaigns = [
@@ -136,6 +137,7 @@ export function createContactPreviewStore({ now = () => new Date().toISOString()
       if (path==="/api/calls") return calls.filter(c=>!params.contact_id||c.call_contact_fk===params.contact_id).sort((a,b)=>b.call_created_at.localeCompare(a.call_created_at));
       if (taskRoute) return task ? ok(task) : fail("Task not found");
       if (path==="/api/tasks") return paginate(tasks.filter(t=>!params.contact_id||t.task_contact_fk===params.contact_id).sort((a,b)=>b.task_created_at.localeCompare(a.task_created_at)).map(t=>Object.fromEntries(Object.entries(t).filter(([key])=>key!=="task_updates"))),params);
+      if (path==="/api/users") return ok(previewUsers);
       if (path==="/api/accounts") return paginate([account],params);
       if (path==="/api/campaigns") return paginate(campaigns,params);
       if (path==="/api/projects") return paginate([project],params);
@@ -167,10 +169,16 @@ export function createContactPreviewStore({ now = () => new Date().toISOString()
     }
     if ((method==="PATCH" || method==="PUT") && taskRoute) {
       if(!task)return fail("Task not found");
-      const status=payload.task_status;
-      if(!["TODO","IN_PROGRESS","BLOCKED","COMPLETED"].includes(status) || Object.keys(payload).some(key=>key!=="task_status"))return fail("Invalid preview task status patch.");
+      const status=payload.task_status??task.task_status;
+      const fields=["task_status","task_subject","task_description","task_priority","task_due_date","task_user_fk"];
+      if(!["TODO","IN_PROGRESS","BLOCKED","COMPLETED"].includes(status)||Object.keys(payload).some(key=>!fields.includes(key)))return fail("Invalid preview task patch.");
+      if(payload.task_subject!==undefined&&!String(payload.task_subject).trim())return fail("Task subject is required.");
+      if(payload.task_priority!==undefined&&!["LOW","NORMAL","HIGH"].includes(payload.task_priority))return fail("Invalid task priority.");
+      if(payload.task_due_date!=null&&!Number.isFinite(new Date(payload.task_due_date).getTime()))return fail("Invalid due date.");
+      const assignee=payload.task_user_fk===undefined?task.user:previewUsers.find(user=>user.user_id===payload.task_user_fk);
+      if(!assignee)return fail("Assignee not found.");
       const changed=status!==task.task_status;
-      const updated={...task,task_status:status,task_completed_at:status==="COMPLETED" ? task.task_completed_at || now() : null,
+      const updated={...task,...payload,user:assignee,task_status:status,task_completed_at:status==="COMPLETED" ? task.task_completed_at || now() : null,
         task_updates:changed ? [{previous_status:task.task_status,new_status:status,previous_progress:task.task_progress,new_progress:task.task_progress,created_at:now(),user:PREVIEW_USER},...(task.task_updates||[])] : task.task_updates||[]};
       tasks=tasks.map(t=>t===task?updated:t);
       return {success:true,message:"Task updated",...updated,data:updated};

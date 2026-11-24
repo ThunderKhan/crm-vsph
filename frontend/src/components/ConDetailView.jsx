@@ -7,8 +7,9 @@ import { canDoAction, hasModule, currentOrgRole } from "../utils/modules";
 import AddContactModal from "./modals/AddContactModal";
 import ContactProperties, { Expandable } from "./contact/ContactProperties";
 import { SlidingTabs, SaveGlyph, CopyGlyph, useCopyFeedback, Tooltip, ContactSkeleton } from "./contact/ContactMotion";
+import { ContactTaskEditor, TaskStatusControl } from "./contact/ContactTaskEditor";
 import { useDialogExit } from "./contact/useDialogExit";
-import { activityKey, requiredActivityFields, taskStatusLabel, nextTaskCompletion, completionActor } from "./contact/contactMotionUtils.js";
+import { activityKey, requiredActivityFields, nextTaskCompletion, completionActor, allowedTaskStatuses, canManageTaskDetails } from "./contact/contactMotionUtils.js";
 import { activityHistory, groupActivityByDate, activityTime, filterActivity, contactName, emailLink, usableEmail, formatDate, humanize, taskDueDate } from "./contact/contactWorkspaceUtils.js";
 import "./contact/contactWorkspace.css";
 
@@ -103,7 +104,7 @@ function TaskCompletionMeta({ record }) {
   </>;
 }
 
-function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle, expanded, onExpand, alphabetical }) {
+function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle, onTaskStatus, onTaskEdit, expanded, onExpand, alphabetical }) {
   const {kind,record,date}=item;
   const call=kind==="call", Icon=call?Phone:CheckCircle;
   const subject=(call?record.call_subject:record.task_subject) || (call?"Call":"Untitled task");
@@ -125,7 +126,7 @@ function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, o
         <div className="cw-event-summary">
           <h3>{subject}</h3>
           <div className="cw-event-summary-meta">
-            {!call && <span className="cw-task-status" data-status={record.task_status} role="status">{taskStatusLabel(record.task_status)}</span>}
+            {!call && <TaskStatusControl record={record} access={taskAccess} busy={updating} onStatus={onTaskStatus}/>}
             <span className="cw-event-time">{alphabetical ? formatDate(date)||"Date unavailable" : activityTime(date)}</span>
           </div>
         </div>
@@ -145,6 +146,7 @@ function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, o
               <TaskCompletionMeta record={record}/>
             </>}
           </dl>
+          {!call&&canManageTaskDetails(record,taskAccess)&&<div className="cw-form-footer"><button type="button" className="cw-button" disabled={updating} onClick={e=>onTaskEdit(record,e.currentTarget)}>Edit task</button></div>}
         </div>}
       </Expandable>
       {taskError && <p className="cw-field-error" role="alert">{taskError}</p>}
@@ -152,7 +154,7 @@ function ActivityNode({ item, newActivity, taskAccess, taskWrites, taskErrors, o
   </li>;
 }
 
-function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTasks, onRetry, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle }) {
+function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTasks, onRetry, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle, onTaskStatus, onTaskEdit }) {
   const [sort,setSort]=useState("newest"), [status,setStatus]=useState("all"), [priority,setPriority]=useState("all");
   const [query,setQuery]=useState(""), [searchOpen,setSearchOpen]=useState(false), [filterOpen,setFilterOpen]=useState(false);
   const searchId=useId(), filterId=useId(), searchRef=useRef(null), searchButton=useRef(null), filterRoot=useRef(null), filterButton=useRef(null);
@@ -197,7 +199,7 @@ function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTask
         {group.label&&<h3 className="cw-timeline-date">{group.label}</h3>}
         <ol className="cw-timeline-list">{group.items.map(item=>{
           const key=activityKey(item.kind,item.record);
-          return <ActivityNode key={key} item={item} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={onTaskToggle} expanded={expandedKeys.has(key)} onExpand={toggle} alphabetical={alphabetical}/>;
+          return <ActivityNode key={key} item={item} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={onTaskToggle} onTaskStatus={onTaskStatus} onTaskEdit={onTaskEdit} expanded={expandedKeys.has(key)} onExpand={toggle} alphabetical={alphabetical}/>;
         })}</ol>
       </section>)}</div>}
   </section>;
@@ -226,6 +228,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const [savedMode,setSavedMode] = useState(null), [newActivity,setNewActivity] = useState(null);
   const [pending,setPending] = useState(null), [saveError,setSaveError] = useState(""), [feedback,setFeedback] = useState("");
   const [edit,setEdit] = useState(false), [focusCampaign,setFocusCampaign] = useState(false), [deleting,setDeleting] = useState(false), [deletePending,setDeletePending] = useState(false), [deleteError,setDeleteError] = useState("");
+  const [taskEditing,setTaskEditing]=useState(null);
   const editSaved=useRef(false), dialogOpener=useRef(null);
   const composerId = useId(), composer = useRef(null), quickActions = useRef(null), saveLock = useRef(false), deleteLock = useRef(false);
   const canEdit = canDoAction("CONTACTS","EDIT"), canDelete = canDoAction("CONTACTS","DELETE"), canCall = canDoAction("CONTACTS","CREATE");
@@ -240,11 +243,12 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   // (which can already be inside an autofocused dialog). Restore after the
   // closing dialog has been removed and its modal focus scope released.
   useLayoutEffect(() => {
-    if (edit || deleting) return;
+    if (edit || deleting || taskEditing) return;
     const opener=dialogOpener.current;
     dialogOpener.current=null;
-    if (opener?.isConnected && !opener.disabled) opener.focus({preventScroll:true});
-  }, [edit,deleting]);
+    if (opener?.isConnected && !opener.disabled && !opener.closest("[inert]")) opener.focus({preventScroll:true});
+    else if(opener) document.querySelector(".cw-filter-button")?.focus({preventScroll:true});
+  }, [edit,deleting,taskEditing]);
   useEffect(() => {
     if (!isOpen || !contactId) return;
     let cancelled = false;
@@ -309,24 +313,32 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
     onClose();
   };
   function retryHistory() { if(taskLocks.current.size)return; setHistoryLoading(true); setHistoryError(""); setHistoryRevision(v=>v+1); }
-  async function toggleTask(record) {
-    const id=record.task_id, next=nextTaskCompletion(record,taskAccess);
-    if(!next || historyLoading || taskLocks.current.has(id))return;
+  async function saveTaskPatch(record,patch) {
+    const id=record.task_id;
+    if(historyLoading||taskLocks.current.has(id))throw new Error("A task update is already in progress.");
+    if(patch.task_status!==undefined&&!allowedTaskStatuses(record,taskAccess).includes(patch.task_status))throw new Error("This status change is not permitted.");
+    if(Object.keys(patch).some(key=>key!=="task_status")&&!canManageTaskDetails(record,taskAccess))throw new Error("Task editing is not permitted.");
     taskLocks.current.add(id);
-    setTaskWrites(prev=>({...prev,[id]:true}));
-    setTaskErrors(prev=>({...prev,[id]:null}));
-    try {
-      // Status-only mutation: do not rewrite independently tracked progress.
-      const result=await api.patch("/api/tasks/"+encodeURIComponent(id),{task_status:next});
+    setTaskWrites(prev=>({...prev,[id]:true}));setTaskErrors(prev=>({...prev,[id]:null}));
+    try{
+      const result=await api.patch("/api/tasks/"+encodeURIComponent(id),patch);
       const updated=result?.data;
-      if(!result?.success || updated?.task_id!==id || updated.task_status!==next)throw new Error(errorMessage(result,"Could not update task status."));
-      setTasks(prev=>prev.map(item=>item.task_id===id ? {...item,...updated} : item));
-    } catch(error) {
-      setTaskErrors(prev=>({...prev,[id]:error.message || "Could not update task status. Try again."}));
-    } finally {
-      taskLocks.current.delete(id);
-      setTaskWrites(prev=>({...prev,[id]:false}));
+      if(!result?.success||updated?.task_id!==id||(patch.task_status!==undefined&&updated.task_status!==patch.task_status))throw new Error(errorMessage(result,"Could not update task."));
+      setTasks(prev=>prev.map(item=>item.task_id===id?{...item,...updated}:item));
+      return updated;
+    }finally{
+      taskLocks.current.delete(id);setTaskWrites(prev=>({...prev,[id]:false}));
     }
+  }
+  async function changeTaskStatus(record,next){
+    if(!next||next===record.task_status||taskLocks.current.has(record.task_id))return;
+    try{await saveTaskPatch(record,{task_status:next});}
+    catch(error){setTaskErrors(prev=>({...prev,[record.task_id]:error.message||"Could not update task status. Try again."}));}
+  }
+  function toggleTask(record){return changeTaskStatus(record,nextTaskCompletion(record,taskAccess));}
+  function editTask(record,opener){
+    if(!canManageTaskDetails(record,taskAccess)||taskLocks.current.has(record.task_id))return;
+    dialogOpener.current=opener;setTaskEditing(record);
   }
   async function submit(event) {
     event.preventDefault();
@@ -416,11 +428,12 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
             </div></Expandable>
             {feedback && <p className="cw-feedback" role="status">{mode!=="email" && <CheckCircle size={16} aria-hidden="true"/>}{feedback}</p>}
           </section>
-          <Timeline calls={calls} tasks={tasks} loading={historyLoading} error={historyError} filter={filter} setFilter={value=>{setNewActivity(null);setFilter(value);}} canViewTasks={canViewTasks} onRetry={retryHistory} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={toggleTask}/>
+          <Timeline calls={calls} tasks={tasks} loading={historyLoading} error={historyError} filter={filter} setFilter={value=>{setNewActivity(null);setFilter(value);}} canViewTasks={canViewTasks} onRetry={retryHistory} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={toggleTask} onTaskStatus={changeTaskStatus} onTaskEdit={editTask}/>
         </div>
         <ContactProperties contact={contact}/>
       </div> : <Opportunities opportunities={contact.opportunities || []}/>}
       {edit && canEdit && <AddContactModal isOpen={edit} onClose={()=>{setEdit(false);if(editSaved.current){editSaved.current=false;setRevision(v=>v+1);onChanged?.();}}} onSuccess={()=>{editSaved.current=true;}} contactToEdit={contact} workspaceMotion focusCampaign={focusCampaign} canAssignCampaign={canAssignCampaign}/>}
+      {taskEditing && <ContactTaskEditor key={taskEditing.task_id} record={taskEditing} access={taskAccess} onClose={()=>setTaskEditing(null)} onSave={saveTaskPatch}/>}
       {deleting && canDelete && <DeleteDialog name={name} pending={deletePending} error={deleteError} onClose={()=>setDeleting(false)} onConfirm={confirmDelete}/>}
     </>}
   </div>;
