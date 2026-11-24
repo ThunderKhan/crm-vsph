@@ -126,15 +126,12 @@ const Navbar = () => {
     <header className="shrink-0 z-30">
       {/* Top bar */}
       <div className="bg-vsph-navy">
-        <div className="relative h-16 flex items-center gap-3 sm:gap-6 px-4 sm:px-6">
-          <NavLink to="/v2/dashboard" className="shrink-0 leading-none select-none">
-            <span className="block text-[22px] font-bold text-white tracking-tight">VSPH</span>
-            <span className="block text-[9px] font-semibold text-vsph-light-blue tracking-[0.28em] mt-1">
-              CRM
-            </span>
+        <div className="relative min-h-20 flex items-center gap-3 sm:gap-6 px-4 sm:px-6">
+          <NavLink to="/v2/dashboard" className="shrink-0 flex items-center min-h-[44px] select-none" aria-label="VSPH CRM dashboard">
+            <img src="/vsph-logo-white.png" alt="VSPH" className="w-[168px] h-auto object-contain" />
           </NavLink>
 
-          <div className="hidden md:block absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(680px,calc(100%-340px))]">
+          <div className="hidden md:block relative flex-1 min-w-0 max-w-[680px] mx-auto">
             <div className="flex items-center h-10 bg-white rounded-md overflow-hidden">
               <Search size={17} className="ml-3.5 text-slate-400 shrink-0" />
               <input

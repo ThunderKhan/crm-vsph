@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Loader2, User } from "lucide-react";
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
@@ -13,6 +13,8 @@ const AddContactModal = ({
   onSuccess,
   contactToEdit,
   defaultAccountId,
+  workspaceMotion = false,
+  focusCampaign = false,
 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -21,6 +23,10 @@ const AddContactModal = ({
   const [accounts, setAccounts] = useState([]);
   const [projects, setProjects] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
+  const [workspaceCampaigns,setWorkspaceCampaigns] = useState([]);
+  const [campaignError,setCampaignError] = useState("");
+  const [campaignLoading,setCampaignLoading] = useState(false);
+  const campaignRef = useRef(null);
   const [fieldErrors, setFieldErrors] = useState({});
 
   const getInputClass = (fieldName) =>
@@ -157,6 +163,37 @@ const AddContactModal = ({
       fetchAccounts();
     }
   }, [isOpen, contactToEdit]);
+
+  useEffect(() => {
+    if (!isOpen || !workspaceMotion || !focusCampaign) return;
+    let cancelled = false;
+    const load = async () => {
+      setCampaignLoading(true);
+      try {
+        const records = []; let page = 1, pages = 1;
+        do {
+          const response = await api.get(`/api/campaigns?limit=100&page=${page}`);
+          if (!response.success || !Array.isArray(response.data)) throw new Error(response.message || "Could not load campaigns.");
+          records.push(...response.data);
+          pages = response.pagination?.totalPages || 1;
+          page++;
+        } while (!cancelled && page <= pages);
+        if (!cancelled) { setWorkspaceCampaigns(records); setCampaignError(""); }
+      } catch (err) { if (!cancelled) setCampaignError(err.message || "Could not load campaigns."); }
+      finally { if (!cancelled) setCampaignLoading(false); }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [isOpen,workspaceMotion,focusCampaign]);
+
+  useEffect(() => {
+    if (!isOpen || !workspaceMotion || !focusCampaign || campaignLoading) return;
+    const frame = requestAnimationFrame(() => {
+      campaignRef.current?.scrollIntoView({block:"center"});
+      campaignRef.current?.focus({preventScroll:true});
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen,workspaceMotion,focusCampaign,campaignLoading]);
 
   if (!isOpen) return null;
 
@@ -296,7 +333,9 @@ const AddContactModal = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={contactToEdit ? "Edit Contact" : "Add New Contact"}
+      title={focusCampaign ? "Assign campaign" : contactToEdit ? "Edit Contact" : "Add New Contact"}
+      workspaceMotion={workspaceMotion}
+      busy={loading}
       widthClass="w-[75vw] max-w-5xl"
       headerActions={headerActions}
       footer={footerActions}
@@ -662,14 +701,22 @@ const AddContactModal = ({
                 <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
                   Campaign
                 </label>
-                <SearchableSelect
+                {workspaceMotion && focusCampaign ? <>
+                  <select ref={campaignRef} aria-label="Campaign" value={formData.contact_campaign_fk || ""} disabled={campaignLoading || !!campaignError} onChange={e => setFormData({...formData,contact_campaign_fk:e.target.value})}>
+                    <option value="">Not assigned</option>
+                    {contactToEdit?.contact_campaign_fk && !workspaceCampaigns.some(c => c.campaign_id === contactToEdit.contact_campaign_fk) && <option value={contactToEdit.contact_campaign_fk}>{contactToEdit.contact_campaign?.campaign_name || "Current campaign"}</option>}
+                    {workspaceCampaigns.map(c => <option key={c.campaign_id} value={c.campaign_id}>{c.campaign_name}</option>)}
+                  </select>
+                  {campaignLoading && <p role="status" className="text-sm text-slate-600">Loading campaigns…</p>}
+                  {campaignError && <p role="alert" className="text-sm text-rose-700">{campaignError} Close and reopen to retry.</p>}
+                </> : <SearchableSelect
                   options={campaigns}
                   value={formData.contact_campaign_fk}
                   onChange={(val) =>
                     setFormData({ ...formData, contact_campaign_fk: val })
                   }
                   placeholder="Select Campaign"
-                />
+                />}
               </div>
             </div>
           </div>

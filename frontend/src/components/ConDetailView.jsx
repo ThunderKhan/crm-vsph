@@ -27,7 +27,7 @@ function MoreActions({ canEdit, canDelete, onCampaign, onDelete, code }) {
   function items() { return Array.from(menu.current?.querySelectorAll("button:not(:disabled)") || []); }
   function keyDown(event) {
     if (event.key === "Escape") { event.preventDefault(); close(true); }
-    if (event.key === "Tab") { close(); return; }
+    if (event.key === "Tab") { close(true); return; }
     if (["ArrowDown","ArrowUp","Home","End"].includes(event.key)) {
       event.preventDefault();
       const buttons = items(), index = buttons.indexOf(document.activeElement);
@@ -102,11 +102,12 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const [contact, setContact] = useState(null), [loading, setLoading] = useState(true), [loadError,setLoadError] = useState("");
   const [calls,setCalls] = useState([]), [tasks,setTasks] = useState([]), [historyLoading,setHistoryLoading] = useState(true), [historyError,setHistoryError] = useState("");
   const [revision,setRevision] = useState(0), [historyRevision,setHistoryRevision] = useState(0);
-  const [tab,setTab] = useState("overview"), [filter,setFilter] = useState("all"), [mode,setMode] = useState(null);
+  const [tab,setTab] = useState("overview"), [filter,setFilter] = useState("all"), [mode,setMode] = useState(null), [lastMode,setLastMode] = useState(null);
+  const displayMode = mode || lastMode;
   const [call,setCall] = useState(blankCall), [task,setTask] = useState(blankTask), [email,setEmail] = useState(blankEmail);
   const [pending,setPending] = useState(null), [saveError,setSaveError] = useState(""), [feedback,setFeedback] = useState("");
-  const [edit,setEdit] = useState(false), [deleting,setDeleting] = useState(false), [deletePending,setDeletePending] = useState(false), [deleteError,setDeleteError] = useState("");
-  const composerId = useId(), composer = useRef(null), main = useRef(null), saveLock = useRef(false), deleteLock = useRef(false);
+  const [edit,setEdit] = useState(false), [focusCampaign,setFocusCampaign] = useState(false), [deleting,setDeleting] = useState(false), [deletePending,setDeletePending] = useState(false), [deleteError,setDeleteError] = useState("");
+  const composerId = useId(), composer = useRef(null), quickActions = useRef(null), saveLock = useRef(false), deleteLock = useRef(false);
   const canEdit = canDoAction("CONTACTS","EDIT"), canDelete = canDoAction("CONTACTS","DELETE"), canCall = canDoAction("CONTACTS","CREATE");
   const canViewTasks = hasModule("TASKS") && canDoAction("TASKS","VIEW");
   const canTask = hasModule("TASKS") && canDoAction("TASKS","CREATE");
@@ -154,7 +155,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   }, [contactId,isOpen,canViewTasks,historyRevision]);
   function openComposer(next) {
     if (pending || (next==="call" && !canCall) || (next==="task" && !canTask)) return;
-    setTab("overview"); setMode(next); setSaveError(""); setFeedback("");
+    setTab("overview"); setMode(next); setLastMode(next); setSaveError(""); setFeedback("");
     requestAnimationFrame(() => composer.current?.querySelector("input:not([disabled]),textarea:not([disabled]),select:not([disabled])")?.focus());
   }
   const closeWorkspace = () => {
@@ -166,10 +167,11 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   function retryHistory() { setHistoryLoading(true); setHistoryError(""); setHistoryRevision(v=>v+1); }
   async function submit(event) {
     event.preventDefault();
-    if (saveLock.current || pending || !mode) return;
+    if (saveLock.current || pending || !mode || (mode !== "email" && historyLoading)) return;
     setSaveError(""); setFeedback("");
     if (mode === "email") {
-      const recipient = email.recipient || [contact.contact_professional_email,contact.contact_personal_email].find(usableEmail);
+      const available = [contact.contact_professional_email,contact.contact_personal_email].filter(usableEmail);
+      const recipient = available.includes(email.recipient) ? email.recipient : available[0];
       const href = emailLink(recipient,email.subject,email.body);
       if (!href) { setSaveError("This contact does not have a usable email address."); return; }
       window.location.href = href; setFeedback("Email draft requested in your mail client. No email has been sent by CRM."); return;
@@ -206,42 +208,41 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const name=contactName(contact), initials=[contact?.contact_firstname,contact?.contact_lastname].filter(Boolean).map(v=>v[0].toUpperCase()).join("") || "C";
   const recipients=[...new Set([contact?.contact_professional_email,contact?.contact_personal_email].filter(usableEmail))];
   const actions=[...(canCall ? [{id:"call",label:"Log a call",Icon:Phone}] : []),...(canTask ? [{id:"task",label:"Create task",Icon:CheckCircle}] : []),{id:"email",label:"Compose email",Icon:Mail}];
-  return <div className="cw-workspace" ref={main}>
+  return <div className="cw-workspace">
     <button type="button" className="cw-back" onClick={closeWorkspace} disabled={!!pending}><ArrowLeft size={18}/> Contacts</button>
     {loading ? <div className="cw-panel cw-empty" role="status">Loading contact…</div> : !contact ? <div className="cw-panel cw-empty"><h2>Contact unavailable</h2><p role="alert">{loadError || "Contact not found."}</p><button type="button" className="cw-button" onClick={()=>{setLoading(true);setRevision(v=>v+1);}}>Retry</button></div> : <>
       {loadError && <p className="cw-error" role="alert">{loadError}</p>}
       <section className="cw-panel cw-identity">
         <div className="cw-identity-main"><div className="cw-avatar" aria-hidden="true">{initials}</div><div className="cw-identity-text"><h1>{name}</h1><div className="cw-identity-meta"><span>{contact.contact_code || "No record code"}</span><span className="cw-status" data-connected={contact.contact_call_status==="CONNECTED"}>{contact.contact_call_status==="CONNECTED" && <CheckCircle size={15} aria-hidden="true"/>}{humanize(contact.contact_call_status,"No call status")}</span></div></div></div>
         <div className="cw-identity-side"><div className="cw-actions">
-          {canEdit && <button type="button" className="cw-button" onClick={()=>setEdit(true)}><Edit size={16}/> Edit contact</button>}
-          {canCall && mode!=="call" && <button type="button" className="cw-button cw-primary" onClick={()=>openComposer("call")} disabled={!!pending}><Phone size={16}/> Log call</button>}
-          {(canEdit || canDelete || contact.contact_code) && <MoreActions canEdit={canEdit} canDelete={canDelete} code={contact.contact_code} onCampaign={()=>setEdit(true)} onDelete={()=>{setDeleteError("");setDeleting(true);}}/>}
+          {canEdit && <button type="button" className="cw-button" onClick={()=>{setFocusCampaign(false);setEdit(true);}}><Edit size={16}/> Edit contact</button>}
+          {canCall && !mode && <button type="button" className="cw-button cw-primary" onClick={()=>openComposer("call")} disabled={!!pending}><Phone size={16}/> Log call</button>}
+          {(canEdit || canDelete || contact.contact_code) && <MoreActions canEdit={canEdit && hasModule("CAMPAIGNS") && canDoAction("CAMPAIGNS","VIEW")} canDelete={canDelete} code={contact.contact_code} onCampaign={()=>{setFocusCampaign(true);setEdit(true);}} onDelete={()=>{setDeleteError("");setDeleting(true);}}/>}
         </div><p className="cw-muted">Owner: {contact.contact_owner?.user_name || "Not assigned"}</p></div>
       </section>
       <div className="cw-tabs cw-main-tabs" role="group" aria-label="Contact workspace views">
         {[["overview","Overview"],["opportunities","Opportunities"]].map(([value,label])=><button type="button" key={value} aria-pressed={tab===value} onClick={()=>setTab(value)}>{label}</button>)}
       </div>
       {tab==="overview" ? <div className="cw-grid">
-        <ContactProperties contact={contact}/>
         <div className="cw-activity">
           <section className="cw-panel cw-composer-panel" aria-labelledby="cw-composer-heading">
-            <div className="cw-panel-header"><h2 id="cw-composer-heading">Quick actions</h2>{mode && <button type="button" className="cw-icon" title="Collapse composer" aria-label="Collapse composer" aria-expanded="true" aria-controls={composerId} disabled={!!pending} onClick={()=>{setMode(null);setSaveError("");}}><ChevronDown size={18} className="cw-chevron-open"/></button>}</div>
-            <div className="cw-quick-actions">{actions.map(({id,label,Icon})=><button type="button" className="cw-button" key={id} aria-pressed={mode===id} aria-expanded={mode===id} aria-controls={composerId} onClick={()=>openComposer(id)} disabled={!!pending}><Icon size={18}/>{label}</button>)}</div>
+            <div className="cw-panel-header"><h2 id="cw-composer-heading">Quick actions</h2>{mode && <button type="button" className="cw-icon" title="Collapse composer" aria-label="Collapse composer" aria-expanded="true" aria-controls={composerId} disabled={!!pending} onClick={()=>{setMode(null);setSaveError("");quickActions.current?.querySelector(`[data-mode="${mode}"]`)?.focus();}}><ChevronDown size={18} className="cw-chevron-open"/></button>}</div>
+            <div className="cw-quick-actions" ref={quickActions}>{actions.map(({id,label,Icon})=><button type="button" className="cw-button" key={id} data-mode={id} aria-pressed={mode===id} aria-expanded={mode===id} aria-controls={composerId} onClick={()=>openComposer(id)} disabled={!!pending}><Icon size={18}/>{label}</button>)}</div>
             {!mode && <p className="cw-muted cw-composer-hint">Record an interaction or plan a follow-up.</p>}
             <Expandable open={!!mode} id={composerId}><div ref={composer} className="cw-composer">
-              {mode && <form onSubmit={submit} className="cw-form">
-                <h3>{actions.find(a=>a.id===mode)?.label}</h3>
+              {displayMode && <form onSubmit={submit} className="cw-form">
+                <h3>{actions.find(a=>a.id===displayMode)?.label}</h3>
                 <fieldset disabled={!!pending} className="cw-form-fields">
-                {mode==="call" ? <>
+                {displayMode==="call" ? <>
                   <label>Subject / outcome <span aria-hidden="true">*</span><input required value={call.subject} onChange={e=>setCall({...call,subject:e.target.value})} placeholder="Enter an outcome or call subject"/></label>
                   <label>Call notes <span aria-hidden="true">*</span><textarea required rows={4} value={call.description} onChange={e=>setCall({...call,description:e.target.value})} placeholder="What was discussed?"/></label>
-                </> : mode==="task" ? <>
+                </> : displayMode==="task" ? <>
                   <label>Task subject <span aria-hidden="true">*</span><input required value={task.subject} onChange={e=>setTask({...task,subject:e.target.value})} placeholder="Enter a task name"/></label>
                   <label>Priority<select value={task.priority} onChange={e=>setTask({...task,priority:e.target.value})}><option value="LOW">Low</option><option value="NORMAL">Normal</option><option value="HIGH">High</option></select></label>
                   <div className="cw-date-row"><label>Due date<input type="date" value={task.date} onChange={e=>setTask({...task,date:e.target.value})}/></label><label>Due time<input type="time" value={task.time} onChange={e=>setTask({...task,time:e.target.value})} disabled={!task.date}/></label></div>
                   <label>Description<textarea rows={3} value={task.description} onChange={e=>setTask({...task,description:e.target.value})} placeholder="What needs to be done?"/></label>
                 </> : <>
-                  <label>Recipient<select value={email.recipient || recipients[0] || ""} onChange={e=>setEmail({...email,recipient:e.target.value})}>{recipients.length ? recipients.map(address=><option key={address}>{address}</option>) : <option value="">No usable email address</option>}</select></label>
+                  <label>Recipient<select value={recipients.includes(email.recipient) ? email.recipient : recipients[0] || ""} onChange={e=>setEmail({...email,recipient:e.target.value})}>{recipients.length ? recipients.map(address=><option key={address}>{address}</option>) : <option value="">No usable email address</option>}</select></label>
                   <label>Subject<input value={email.subject} onChange={e=>setEmail({...email,subject:e.target.value})} placeholder="Email subject"/></label>
                   <label>Message<textarea rows={5} value={email.body} onChange={e=>setEmail({...email,body:e.target.value})} placeholder="Write your email…"/></label>
                   <p className="cw-muted">Opens your mail client. CRM does not send or track this email.</p>
@@ -249,15 +250,16 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
                 </fieldset>
                 {saveError && <p role="alert" className="cw-error">{saveError}</p>}
                 <div className="cw-form-footer"><span className="cw-muted">{mode==="email" ? "" : `Recorded by ${currentUserName}`}</span><div className="cw-actions"><button type="button" className="cw-button" disabled={!!pending} onClick={()=>{if(mode==="call")setCall(blankCall);else if(mode==="task")setTask(blankTask);else setEmail(blankEmail);setSaveError("");setFeedback("");}}>Reset</button>
-                <button type="submit" className="cw-button cw-primary" disabled={!!pending || (mode==="email" && !recipients.length)}>{pending ? "Saving…" : mode==="call" ? "Save call" : mode==="task" ? "Create task" : "Open email client"}</button></div></div>
+                <button type="submit" className="cw-button cw-primary" disabled={!!pending || (mode!=="email" && historyLoading) || (mode==="email" && !recipients.length)}>{pending ? "Saving…" : displayMode==="call" ? "Save call" : displayMode==="task" ? "Create task" : "Open email client"}</button></div></div>
               </form>}
             </div></Expandable>
             {feedback && <p className="cw-feedback" role="status"><CheckCircle size={16}/>{feedback}</p>}
           </section>
           <Timeline calls={calls} tasks={tasks} loading={historyLoading} error={historyError} filter={filter} setFilter={setFilter} canViewTasks={canViewTasks} onRetry={retryHistory}/>
         </div>
-      </div> : <Opportunities opportunities={contact.opportunities}/>}
-      {edit && canEdit && <AddContactModal isOpen={edit} onClose={()=>setEdit(false)} onSuccess={()=>{setEdit(false);setRevision(v=>v+1);onChanged?.();}} contactToEdit={contact} workspaceMotion/>}
+        <ContactProperties contact={contact}/>
+      </div> : <Opportunities opportunities={contact.opportunities || []}/>}
+      {edit && canEdit && <AddContactModal isOpen={edit} onClose={()=>setEdit(false)} onSuccess={()=>{setEdit(false);setRevision(v=>v+1);onChanged?.();}} contactToEdit={contact} workspaceMotion focusCampaign={focusCampaign}/>}
       {deleting && canDelete && <DeleteDialog name={name} pending={deletePending} error={deleteError} onClose={()=>setDeleting(false)} onConfirm={confirmDelete}/>}
     </>}
   </div>;
