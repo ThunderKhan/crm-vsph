@@ -25,14 +25,17 @@ export function ActivityFilters({open,onOpen,sort,setSort,status,setStatus,prior
   useLayoutEffect(()=>{
     if(!open)return;
     function measure(){
-      const rect=root.current?.getBoundingClientRect();
+      const rect=root.current?.closest(".cw-history-controls")?.getBoundingClientRect();
       if(!rect)return;
       const below=window.innerHeight-rect.bottom-16, above=rect.top-16;
       const side=below<320&&above>below?"top":"bottom";
-      setPlacement({side,height:Math.max(96,side==="top"?above:below)});
+      const height=Math.max(96,side==="top"?above:below);
+      setPlacement(prev=>prev.side===side&&prev.height===height?prev:{side,height});
     }
-    measure();window.addEventListener("resize",measure);window.addEventListener("scroll",measure,true);
-    return ()=>{window.removeEventListener("resize",measure);window.removeEventListener("scroll",measure,true);};
+    let frame;
+    const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(measure);};
+    measure();window.addEventListener("resize",schedule);window.addEventListener("scroll",schedule,true);
+    return ()=>{cancelAnimationFrame(frame);window.removeEventListener("resize",schedule);window.removeEventListener("scroll",schedule,true);};
   },[open]);
   useEffect(()=>{
     if(!open)return;
@@ -49,17 +52,17 @@ export function ActivityFilters({open,onOpen,sort,setSort,status,setStatus,prior
         <Options legend="Sort by" type="sort" options={sorts} value={sort} onChange={setSort}/>
         {taskFilters&&<><Options legend="Task status" type="status" options={statuses} value={status} onChange={setStatus}/><Options legend="Priority" type="priority" options={priorities} value={priority} onChange={setPriority}/></>}
       </div>
-      <div className="cw-filter-footer">{count?count+" active "+(count===1?"selection":"selections"):"Default view"}<span>Applied instantly</span></div>
+      <div className="cw-filter-footer">{count?count+" active "+(count===1?"selection":"selections"):"Default view"}</div>
     </div>
   </div>;
 }
 
 export function AddActivityMenu({actions,onSelect,onOpen}) {
-  const [open,setOpen]=useState(false);
+  const [open,setOpen]=useState(false), [side,setSide]=useState("bottom");
   const root=useRef(null),trigger=useRef(null),menu=useRef(null),id=useId();
   const icons={call:Phone,task:CheckCircle,email:Mail};
   const options=()=>Array.from(menu.current?.querySelectorAll('[role="menuitem"]')||[]);
-  function show(last=false){onOpen?.();setOpen(true);requestAnimationFrame(()=>{const nodes=options();nodes[last?nodes.length-1:0]?.focus();});}
+  function show(last=false){onOpen?.();const rect=root.current?.closest(".cw-history-controls")?.getBoundingClientRect();setSide(rect&&window.innerHeight-rect.bottom<160&&rect.top>160?"top":"bottom");setOpen(true);requestAnimationFrame(()=>{const nodes=options();nodes[last?nodes.length-1:0]?.focus();});}
   function close(focus=false){setOpen(false);if(focus)trigger.current?.focus();}
   useEffect(()=>{
     if(!open)return;
@@ -79,8 +82,8 @@ export function AddActivityMenu({actions,onSelect,onOpen}) {
   }
   return <div className="cw-menu-anchor cw-add-activity-anchor" ref={root} onKeyDown={keys}>
     <button type="button" ref={trigger} className="cw-button cw-primary cw-add-activity" aria-haspopup="menu" aria-expanded={open} aria-controls={id} onClick={()=>open?close(true):show()} onKeyDown={e=>{if(!open&&["ArrowDown","ArrowUp"].includes(e.key)){e.preventDefault();e.stopPropagation();show(e.key==="ArrowUp");}}}><Plus size={18} aria-hidden="true"/> Add activity <ChevronDown className="cw-chevron" size={16} aria-hidden="true"/></button>
-    <div ref={menu} id={id} className="cw-menu cw-add-menu" role="menu" aria-label="Add activity" data-open={open} data-align="right" inert={!open} aria-hidden={!open}>
-      {actions.map(({id:kind,label})=>{const Icon=icons[kind];return <button type="button" key={kind} role="menuitem" onClick={()=>{close(true);onSelect(kind,trigger.current);}}><Icon size={16} aria-hidden="true"/>{label}</button>;})}
+    <div ref={menu} id={id} className="cw-menu cw-add-menu" role="menu" aria-label="Add activity" data-side={side} data-open={open} data-align="right" inert={!open} aria-hidden={!open}>
+      {actions.map(({id:kind,label})=>{const Icon=icons[kind];return <button type="button" key={kind} role="menuitem" tabIndex={-1} onClick={()=>{close(true);onSelect(kind,trigger.current);}}><Icon size={16} aria-hidden="true"/>{label}</button>;})}
     </div>
   </div>;
 }

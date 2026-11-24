@@ -218,7 +218,7 @@ test("status menu and task editor persist real changes independently of disclosu
   const history=page.getByRole("region",{name:"Activity history"});
   const row=history.locator(".cw-timeline-item").filter({has:page.getByRole("heading",{name:"Schedule product demonstration",exact:true})});
   await row.getByRole("button",{name:"Change status: Schedule product demonstration"}).click();
-  await row.getByRole("button",{name:"In progress",exact:true}).click();
+  await row.getByRole("menuitemradio",{name:"In progress",exact:true}).click();
   await expect(row.locator(".cw-task-status-trigger")).toHaveText("In progress");
   await expect(row.getByRole("button",{name:"Expand details: Schedule product demonstration"})).toHaveAttribute("aria-expanded","false");
   await row.getByRole("button",{name:"Expand details: Schedule product demonstration"}).click();
@@ -303,4 +303,27 @@ test("activity toolbar keyboard navigation and reduced-motion mobile dialog",asy
   await expect(history.getByRole("radio",{name:"Oldest first",exact:true})).toBeChecked();
   await page.keyboard.press("Escape");
   await expect(history.getByRole("button",{name:/Filter/})).toBeFocused();
+});
+
+test("contact audit keeps edit fields labelled and controls readable at narrow widths",async({page})=>{
+  await page.setViewportSize({width:320,height:740});
+  await page.goto(url);
+  await expect(page.getByRole("heading",{name:/Priya Anjali Kapoor/})).toBeVisible();
+  const history=page.getByRole("region",{name:"Activity history"});
+  await history.getByRole("button",{name:"Filter",exact:true}).click();
+  const menu=history.locator(".cw-filter-menu");
+  await expect(menu).toBeVisible();
+  expect(await menu.evaluate(el=>{const r=el.getBoundingClientRect();return r.left>=0&&r.right<=window.innerWidth;})).toBeTruthy();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button",{name:"Edit contact",exact:true}).click();
+  const dialog=page.getByRole("dialog");
+  await expect(dialog.getByLabel("First name *",{exact:true})).toBeVisible();
+  await dialog.getByLabel("First name *",{exact:true}).fill("");
+  await dialog.getByRole("button",{name:/Save Contact/i}).click();
+  await expect(dialog.getByText("Enter a first name.",{exact:true})).toBeVisible();
+  await expect(dialog.getByLabel("First name *",{exact:true})).toHaveAttribute("aria-invalid","true");
+  await expect(dialog.getByLabel("First name *",{exact:true})).toBeFocused();
+  await dialog.getByRole("button",{name:"Cancel",exact:true}).click();
+  await expect(dialog).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
 });

@@ -109,3 +109,7 @@ Six approved feedback items implemented: no date divider lines; no progress curs
 ### Round 3 feedback acceptance
 
 Review thin search focus ring, grouped filter radios/checkmarks/priority chips, keyboard radio selection, active count, reset, popup bounds, and compact toolbar at desktop/mobile. Verify Add activity menu keyboard navigation and permissions, native modal focus and Escape, independent drafts, validation, failure/retry, save lock, saved feedback, focus restoration, unchanged active filters and hidden-record notice, new record highlight after close, email mailto disclaimer, and reduced motion. Existing 9 browser scenarios adapted to modal workflow; 2 additional browser tests (11 total expected). Utility suites unchanged (25 tests). Run all utility scripts, build and `npm run test:contact-browser`; actual Vite and browser execution remains local.
+
+### Skill-led design audit acceptance
+
+Retain all 11 prior browser cases and add one narrow-screen edit/validation regression (12 browser cases expected). Verify 320/375/390/768/1272/1600 CSS px, layout/keyboard and mouse across identity, properties, timeline, status selector, filter menu, activity dialogs, edit contact/campaign dialogs, missing/long/loading/error states and reduced motion. Inspect selected/focus/disabled/loading contrast and popup bounds; compare clean fixture before/after at the same size. Source contrast pairs checked independently; full browser/build and actual Impeccable detector unavailable remotely. See log/contact-workspace-design-audit.md.
