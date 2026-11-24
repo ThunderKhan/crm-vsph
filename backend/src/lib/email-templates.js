@@ -1,4 +1,4 @@
-const LOGO_URL = "https://app.vsph.in/vsph-logo-white.png";
+const LOGO_URL = "https://app.vsph.in/vsph-logo-email.png";
 const COMPANY_NAME = "VSPH";
 const COMPANY_TAGLINE = "Innovation. Technology. People.";
 const COMPANY_WEBSITE = "vsph.in";
