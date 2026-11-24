@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ArrowLeft, MoreHorizontal, Phone, Mail, CheckCircle, ChevronDown, Clock, Edit, Copy, Trash2, UserPlus } from "lucide-react";
 import toast from "react-hot-toast";
 import { api } from "../utils/api";
+import { readSessionValue } from "../utils/session.js";
 import { canDoAction, hasModule } from "../utils/modules";
 import AddContactModal from "./modals/AddContactModal";
 import ContactProperties, { Expandable } from "./contact/ContactProperties";
@@ -119,8 +120,8 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const canViewTasks = hasModule("TASKS") && canDoAction("TASKS","VIEW");
   const canTask = hasModule("TASKS") && canDoAction("TASKS","CREATE");
   const endpoint = `/api/contacts/${encodeURIComponent(contactId)}`;
-  const currentUserId = localStorage.getItem("vsph_user_id") || undefined;
-  const currentUserName = localStorage.getItem("vsph_user_name") || "Unknown user";
+  const currentUserId = readSessionValue("vsph_user_id") || undefined;
+  const currentUserName = readSessionValue("vsph_user_name") || "Unknown user";
   useEffect(() => {
     if (!isOpen || !contactId) return;
     let cancelled = false;

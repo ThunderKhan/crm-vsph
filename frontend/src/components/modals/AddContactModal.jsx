@@ -4,6 +4,7 @@ import Button from "../ui/Button";
 import Modal from "../ui/Modal";
 import SearchableSelect from "../ui/SearchableSelect";
 import { api } from "../../utils/api";
+import { readSessionValue } from "../../utils/session.js";
 import { INDUSTRIES } from "../../data/industries";
 import toast from "react-hot-toast";
 
@@ -151,8 +152,8 @@ const AddContactModal = ({
 
     if (isOpen) {
       if (!contactToEdit) {
-        const userId = localStorage.getItem("vsph_user_id");
-        const userName = localStorage.getItem("vsph_user_name");
+        const userId = readSessionValue("vsph_user_id");
+        const userName = readSessionValue("vsph_user_name");
         if (userId) {
           setOwnerName(userName || "Unknown User");
           setOwnerId(userId);

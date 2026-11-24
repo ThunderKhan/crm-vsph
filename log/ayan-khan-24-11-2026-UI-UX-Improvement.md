@@ -175,3 +175,7 @@ Feature branch: `feat/contact-workspace-redesign`. One organization PR after loc
 The original Add to Campaign opened a create-campaign modal and the contact editor did not load its campaign choices. The feature uses the existing contact update workflow with permission-aware campaign loading and a focused campaign selection, not a new backend mutation. Keep the standard modal path for unrelated screens. The favicon is cropped from existing brand artwork rather than a newly invented logo. No animation dependency introduced; no changes to DESIGN.md, API or schema.
 
 Implementation commits: `c86d3cb` (workspace), `cb73b88` (motion and brand), followed by the verification/polish commit. See [contact-workspace-verification.md](contact-workspace-verification.md) for local commands, the test matrix and limitations. Seven utility tests passed using Node.js 22 against a blob-matched copy of the utility module; full Vite/lint/browser/API verification remains pending. No upstream repository changes.
+
+## 8. Development-only preview — 24 November 2026
+
+Added a seeded local preview using the actual contact components and shell, not a duplicate design. The Vite development-only entry injects synthetic session values and an isolated, in-memory API adapter. No credentials, backend environment, persistent data, or production auth bypass. Full, minimal and long-content contacts, reset, latency and failed-write controls. See [contact-preview.md](contact-preview.md) for local use and verification. Real backend startup troubleshooting remains outside the visual PR.

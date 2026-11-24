@@ -55,3 +55,7 @@ Confirm origin points to ThunderKhan/crm-vsph (git remote -v). If it does not, f
 - Verified the original VSPH PNG's format and decompressed checksum before generating a cropped 64x64 PNG from existing artwork; visually inspected the cropped symbol.
 - This environment cannot fetch the entire repository using local Git or install dependencies from the network. Full Vite build, ESLint, browser, authenticated API and accessibility/performance testing have not been run here. Do not treat the implementation as production-ready until these checks are completed.
 - The organization repository was not modified. A single upstream PR is planned only after local acceptance.
+
+## Offline visual review
+
+When backend credentials are unavailable, follow [contact-preview.md](contact-preview.md). The preview exercises the real components against isolated fixture data; it does not replace the live API test matrix above.

@@ -31,7 +31,7 @@ const ID_PARAMS = {
   task: 'task_id',
 };
 
-const Navbar = () => {
+const Navbar = ({ onPreviewExit } = {}) => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -116,6 +116,7 @@ const Navbar = () => {
   };
 
   const signOut = () => {
+    if (onPreviewExit) { onPreviewExit(); return; }
     if (window.confirm('Are you sure you want to sign out?')) {
       localStorage.clear();
       window.location.href = '/';
