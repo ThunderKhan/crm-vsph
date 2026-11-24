@@ -214,8 +214,10 @@ Terminal 1 — backend:
 
 ```bash
 cd backend
-npm run dev     # http://localhost:5000 (should log "CRM API Running" at /)
+npm run dev     # generates the Prisma client, then http://localhost:5000 (should log "CRM API Running" at /)
 ```
+
+> `npm run dev` runs `prisma generate` first, so a fresh `npm install` / `npm ci` works without a manual generate step.
 
 Terminal 2 — frontend:
 
@@ -383,6 +385,7 @@ The UI follows the VSPH brand (`frontend/DESIGN.md`):
 - **Entitlement fail-closed** — client access is blocked when no entitlement record exists. Run `npm run backfill:onboarding` after migrating existing data.
 - **Supabase later** — the multi-tenant model is database-agnostic, but switching to Supabase/PostgreSQL requires a new Prisma provider/adapter and schema re-push.
 - **Migrations** — use `npx prisma db push`, not `prisma migrate` (shipped migrations are out of sync).
+- **`Named export 'Status' not found`** — the Prisma client has not been generated yet. Run `npx prisma generate` (or just `npm run dev`, which generates it first). Prisma 7 no longer generates the client on install.
 - **Tenant deletion** — intentionally blocked (409) when users or CRM data exist, to prevent FK errors / data loss.
 - **Test data** — the local DB may contain extra test clients (e.g. "Test Client", "Test Client Corp", "Acme Corp"); remove them in the Clients page if you want a clean slate.
 ```

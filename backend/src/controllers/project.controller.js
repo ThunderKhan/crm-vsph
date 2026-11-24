@@ -1,6 +1,10 @@
 import { prisma } from "../lib/prisma.js";
-import { type as projectType, Status as projectStatus } from "@prisma/client";
+import prismaClientPackage from "@prisma/client";
 import { getTenantFilter } from "../middleware/auth.middleware.js";
+
+// Prisma's generated enums are CommonJS exports; a default import resolves them
+// reliably in ESM, named imports only work once the client has been generated.
+const { type: projectType, Status: projectStatus } = prismaClientPackage;
 
 // GET /api/projects/enums
 export const getProjectEnums = async (req, res) => {
