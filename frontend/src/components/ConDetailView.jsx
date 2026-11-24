@@ -1,14 +1,14 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import { ArrowLeft, MoreHorizontal, Phone, CheckCircle, FileText, Plus, Copy, Trash2, UserPlus } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, Phone, CheckCircle, FileText, Copy, Trash2, UserPlus } from "lucide-react";
 import toast from "react-hot-toast";
 import { api } from "../utils/api";
 import { readSessionValue } from "../utils/session.js";
-import { canDoAction, hasModule } from "../utils/modules";
+import { canDoAction, hasModule, currentOrgRole } from "../utils/modules";
 import AddContactModal from "./modals/AddContactModal";
 import ContactProperties, { Expandable } from "./contact/ContactProperties";
 import { SlidingTabs, SaveGlyph, CopyGlyph, useCopyFeedback, Tooltip, ContactSkeleton } from "./contact/ContactMotion";
 import { useDialogExit } from "./contact/useDialogExit";
-import { activityKey, requiredActivityFields } from "./contact/contactMotionUtils.js";
+import { activityKey, requiredActivityFields, taskStatusLabel, nextTaskCompletion, completionActor } from "./contact/contactMotionUtils.js";
 import { activityHistory, contactName, emailLink, usableEmail, formatDate, humanize, taskDueDate } from "./contact/contactWorkspaceUtils.js";
 import "./contact/contactWorkspace.css";
 
@@ -76,7 +76,27 @@ function DeleteDialog({ name, onConfirm, onClose, pending, error }) {
   </dialog>;
 }
 
-function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTasks, onRetry, newActivity }) {
+function TaskCompletionMeta({ record }) {
+  const [audit,setAudit]=useState(null);
+  const complete=record.task_status==="COMPLETED";
+  const hasAudit=Array.isArray(record.task_updates);
+  const key=record.task_id+":"+String(record.task_completed_at||"");
+  useEffect(()=>{
+    if(!complete || hasAudit || !record.task_id)return;
+    let active=true;
+    api.get("/api/tasks/"+encodeURIComponent(record.task_id)).then(result=>{
+      if(active && result?.success && result.data?.task_status==="COMPLETED" &&
+        result.data.task_completed_at===record.task_completed_at) setAudit({key,actor:completionActor(result.data)});
+    }).catch(()=>{ /* No invented attribution when audit is unavailable. */ });
+    return ()=>{active=false;};
+  },[complete,hasAudit,key,record.task_id,record.task_completed_at]);
+  if(!complete)return null;
+  const actor=completionActor(record) || (audit?.key===key ? audit.actor : null);
+  const date=formatDate(record.task_completed_at);
+  if(!actor && !date)return null;
+  return <div className="cw-event-meta cw-completion-meta">{actor ? "Completed by "+actor : "Completed"}{date && " · "+date}</div>;
+}
+function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTasks, onRetry, newActivity, taskAccess, taskWrites, taskErrors, onTaskToggle }) {
   const items = activityHistory(calls, tasks, filter);
   return <section className="cw-panel cw-history-panel" aria-labelledby="cw-history-heading">
     <div className="cw-panel-header"><h2 id="cw-history-heading">Activity history</h2><span className="cw-muted">Newest first</span></div>
@@ -88,12 +108,16 @@ function Timeline({ calls, tasks, loading, error, filter, setFilter, canViewTask
         const subject = call ? record.call_subject : record.task_subject;
         const description = call ? record.call_description : record.task_description;
         const key = activityKey(kind,record);
-        return <li key={key} className="cw-timeline-item" data-new={newActivity===key}>
-          <span className="cw-event-icon"><Icon size={18} aria-hidden="true"/></span>
-          <div className="cw-event-content"><div className="cw-event-top"><h3>{subject || (call ? "Call" : "Task")}</h3><span className="cw-muted">{call ? "Call" : "Task"}</span></div>
+        const done=!call && record.task_status==="COMPLETED";
+        const next=call ? null : nextTaskCompletion(record,taskAccess);
+        const updating=!call && !!taskWrites[record.task_id];
+        const taskError=!call && taskErrors[record.task_id];
+        return <li key={key} className="cw-timeline-item" data-new={newActivity===key} data-completed={done}>
+          <span className="cw-event-icon"><Icon size={18} aria-hidden="true"/><span className="cw-sr">{call ? "Call" : "Task"}</span></span>
+          <div className="cw-event-content"><div className="cw-event-top"><h3>{subject || (call ? "Call" : "Task")}</h3>{!call && <button type="button" role="checkbox" className="cw-task-check" aria-checked={done} aria-disabled={!next||updating} aria-busy={updating} aria-label={`Complete task: ${subject || "Untitled task"}`} title={updating ? "Saving status…" : !next ? "Status cannot be changed here" : done ? "Reopen task" : "Mark complete"} onClick={()=>{if(next&&!updating)onTaskToggle(record);}}><span className="cw-task-check-box" aria-hidden="true">{updating ? <span className="cw-task-spinner"/> : <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path pathLength="1" d="m5 12 4 4L19 6"/></svg>}</span></button>}</div>
             {description && <p className="cw-event-notes">{description}</p>}
             <div className="cw-event-meta">{record.user?.user_name || "Unknown user"} · {formatDate(date) || "Date unavailable"}</div>
-            {!call && <div className="cw-event-meta">{humanize(record.task_priority,"Normal")} priority{record.task_status && " · "+humanize(record.task_status)}{record.task_due_date && " · Due "+(formatDate(record.task_due_date) || "date unavailable")}</div>}
+            {!call && <><div className="cw-event-meta">{humanize(record.task_priority,"Normal")} priority · <span className="cw-task-status" data-status={record.task_status} role="status">{taskStatusLabel(record.task_status)}</span>{record.task_due_date && " · Due "+(formatDate(record.task_due_date) || "date unavailable")}</div><TaskCompletionMeta record={record}/>{taskError && <p className="cw-field-error" role="alert">{taskError}</p>}</>}
           </div>
         </li>;
       })}</ol>}
@@ -112,6 +136,8 @@ function Opportunities({ opportunities = [] }) {
 export default function ConDetailView({ isOpen, onClose, contactId, onChanged }) {
   // The parent keys this component by contact ID, so drafts and requests are isolated per record.
   const [contact, setContact] = useState(null), [loading, setLoading] = useState(true), [loadError,setLoadError] = useState("");
+  const [taskWrites,setTaskWrites]=useState({}), [taskErrors,setTaskErrors]=useState({});
+  const taskLocks=useRef(new Set());
   const [calls,setCalls] = useState([]), [tasks,setTasks] = useState([]), [historyLoading,setHistoryLoading] = useState(true), [historyError,setHistoryError] = useState("");
   const [revision,setRevision] = useState(0), [historyRevision,setHistoryRevision] = useState(0);
   const [tab,setTab] = useState("overview"), [filter,setFilter] = useState("all"), [mode,setMode] = useState(null), [lastMode,setLastMode] = useState(null);
@@ -130,6 +156,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const endpoint = `/api/contacts/${encodeURIComponent(contactId)}`;
   const currentUserId = readSessionValue("vsph_user_id") || undefined;
   const currentUserName = readSessionValue("vsph_user_name") || "Unknown user";
+  const taskAccess={canEdit:canViewTasks && canDoAction("TASKS","EDIT"),role:currentOrgRole(),userId:currentUserId};
   // The opener is captured from the actual action, not document.activeElement
   // (which can already be inside an autofocused dialog). Restore after the
   // closing dialog has been removed and its modal focus scope released.
@@ -197,12 +224,31 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
     quickActions.current?.querySelector(`[data-mode="${previousMode}"]`)?.focus({preventScroll:true});
   }
   const closeWorkspace = () => {
-    if (pending || deletePending) return;
+    if (pending || deletePending || taskLocks.current.size) return;
     const dirty = call.subject || call.description || task.subject || task.description || task.date || task.priority !== "NORMAL" || task.time !== "12:00" || email.subject || email.body;
     if (dirty && !window.confirm("Discard unsaved activity drafts?")) return;
     onClose();
   };
-  function retryHistory() { setHistoryLoading(true); setHistoryError(""); setHistoryRevision(v=>v+1); }
+  function retryHistory() { if(taskLocks.current.size)return; setHistoryLoading(true); setHistoryError(""); setHistoryRevision(v=>v+1); }
+  async function toggleTask(record) {
+    const id=record.task_id, next=nextTaskCompletion(record,taskAccess);
+    if(!next || historyLoading || taskLocks.current.has(id))return;
+    taskLocks.current.add(id);
+    setTaskWrites(prev=>({...prev,[id]:true}));
+    setTaskErrors(prev=>({...prev,[id]:null}));
+    try {
+      // Status-only mutation: do not rewrite independently tracked progress.
+      const result=await api.patch("/api/tasks/"+encodeURIComponent(id),{task_status:next});
+      const updated=result?.data;
+      if(!result?.success || updated?.task_id!==id || updated.task_status!==next)throw new Error(errorMessage(result,"Could not update task status."));
+      setTasks(prev=>prev.map(item=>item.task_id===id ? {...item,...updated} : item));
+    } catch(error) {
+      setTaskErrors(prev=>({...prev,[id]:error.message || "Could not update task status. Try again."}));
+    } finally {
+      taskLocks.current.delete(id);
+      setTaskWrites(prev=>({...prev,[id]:false}));
+    }
+  }
   async function submit(event) {
     event.preventDefault();
     if (saveLock.current || pending || savedMode || !mode || (mode !== "email" && historyLoading)) return;
@@ -249,14 +295,13 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const recipients=[...new Set([contact?.contact_professional_email,contact?.contact_personal_email].filter(usableEmail))];
   const actions=[...(canCall ? [{id:"call",label:"Log a call"}] : []),...(canTask ? [{id:"task",label:"Create task"}] : []),{id:"email",label:"Compose email"}];
   return <div className="cw-workspace">
-    <nav className="cw-breadcrumb" aria-label="Breadcrumb"><button type="button" className="cw-back" onClick={closeWorkspace} disabled={!!pending}><ArrowLeft size={16}/> Contacts</button></nav>
+    <nav className="cw-breadcrumb" aria-label="Breadcrumb"><button type="button" className="cw-back" onClick={closeWorkspace} disabled={!!pending||Object.values(taskWrites).some(Boolean)}><ArrowLeft size={16}/> Contacts</button></nav>
     {loading ? <ContactSkeleton/> : !contact ? <div className="cw-panel cw-empty"><h2>Contact unavailable</h2><p role="alert">{loadError || "Contact not found."}</p><button type="button" className="cw-button" onClick={()=>{setLoading(true);setRevision(v=>v+1);}}>Retry</button></div> : <>
       {loadError && <p className="cw-error" role="alert">{loadError}</p>}
       <section className="cw-panel cw-identity">
         <div className="cw-identity-main"><div className="cw-avatar" aria-hidden="true">{initials}</div><div className="cw-identity-text"><h1>{name}</h1><div className="cw-identity-meta"><span>{contact.contact_code || "No record code"}</span></div></div></div>
         <div className="cw-identity-side"><div className="cw-actions">
           {canEdit && <button type="button" className="cw-button" onClick={event=>{dialogOpener.current=event.currentTarget;setFocusCampaign(false);setEdit(true);}}>Edit contact</button>}
-          {canCall && (!mode || tab !== "overview") && <button type="button" className={`cw-button ${tab !== "overview" ? "cw-primary" : ""}`} onClick={()=>openComposer("call")} disabled={!!pending}><Plus size={16}/> Log call</button>}
           {(canAssignCampaign || canDelete || contact.contact_code) && <MoreActions canEdit={canAssignCampaign} canDelete={canDelete} code={contact.contact_code} onCampaign={opener=>{dialogOpener.current=opener;setFocusCampaign(true);setEdit(true);}} onDelete={opener=>{dialogOpener.current=opener;setDeleteError("");setDeleting(true);}}/>}
         </div></div>
       </section>
@@ -286,13 +331,13 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
                 </>}
                 </fieldset>
                 {saveError && <p role="alert" className="cw-error">{saveError}</p>}
-                <div className="cw-form-footer"><span className="cw-muted">{mode==="email" ? "" : `Recorded by ${currentUserName}`}</span><div className="cw-actions"><button type="button" className="cw-button" disabled={!!pending} onClick={cancelComposer}>Cancel</button>
+                <div className="cw-form-footer"><div className="cw-actions"><button type="button" className="cw-button" disabled={!!pending} onClick={cancelComposer}>Cancel</button>
                 <button type="submit" className="cw-button cw-primary cw-save-button" data-state={pending ? "pending" : savedMode===mode && mode ? "saved" : "idle"} disabled={!!pending || !!savedMode || (mode!=="email" && historyLoading) || (mode==="email" && !recipients.length)}><SaveGlyph state={pending ? "pending" : savedMode===mode && mode ? "saved" : "idle"}/>{pending ? "Saving…" : savedMode===mode && mode ? "Saved" : displayMode==="call" ? "Save call" : displayMode==="task" ? "Create task" : "Open email client"}</button></div></div>
               </form>}
             </div></Expandable>
             {feedback && <p className="cw-feedback" role="status">{mode!=="email" && <CheckCircle size={16} aria-hidden="true"/>}{feedback}</p>}
           </section>
-          <Timeline calls={calls} tasks={tasks} loading={historyLoading} error={historyError} filter={filter} setFilter={value=>{setNewActivity(null);setFilter(value);}} canViewTasks={canViewTasks} onRetry={retryHistory} newActivity={newActivity}/>
+          <Timeline calls={calls} tasks={tasks} loading={historyLoading} error={historyError} filter={filter} setFilter={value=>{setNewActivity(null);setFilter(value);}} canViewTasks={canViewTasks} onRetry={retryHistory} newActivity={newActivity} taskAccess={taskAccess} taskWrites={taskWrites} taskErrors={taskErrors} onTaskToggle={toggleTask}/>
         </div>
         <ContactProperties contact={contact}/>
       </div> : <Opportunities opportunities={contact.opportunities || []}/>}

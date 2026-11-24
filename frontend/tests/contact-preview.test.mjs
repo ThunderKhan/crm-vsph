@@ -74,3 +74,26 @@ test("reset invalidates in-flight writes",async()=>{
   assert.equal((await pending).success,false);
   assert.equal((await s.request("GET","/api/contacts/"+full)).success,true);
 });
+
+test("task completion persists, records the audit actor and supports reopening",async()=>{
+  const s=make(), path="/api/tasks/preview-task-2";
+  assert.equal((await s.request("GET",path)).data.task_status,"TODO");
+  s.failNextWrite();
+  assert.equal((await s.request("PATCH",path,{task_status:"COMPLETED"})).success,false);
+  assert.equal((await s.request("GET",path)).data.task_status,"TODO");
+  const completed=(await s.request("PATCH",path,{task_status:"COMPLETED"})).data;
+  assert.equal(completed.task_status,"COMPLETED");
+  assert.equal(completed.task_completed_at,"2026-11-24T12:00:00.000Z");
+  assert.equal(completed.task_updates[0].user.user_name,"Arjun Mehta");
+  assert.equal(completed.task_updates[0].previous_status,"TODO");
+  assert.equal(completed.task_progress,0);
+  const list=(await s.request("GET","/api/tasks?contact_id="+full)).data;
+  assert.equal(list.find(t=>t.task_id===completed.task_id).task_status,"COMPLETED");
+  assert.equal(list.find(t=>t.task_id===completed.task_id).task_updates,undefined);
+  assert.equal((await s.request("GET",path)).data.task_updates.length,1);
+  const reopened=(await s.request("PATCH",path,{task_status:"IN_PROGRESS"})).data;
+  assert.equal(reopened.task_completed_at,null);
+  assert.equal(reopened.task_updates.length,2);
+  assert.equal((await s.request("PATCH",path,{task_status:"INVALID"})).success,false);
+  assert.equal((await s.request("GET",path)).data.task_status,"IN_PROGRESS");
+});

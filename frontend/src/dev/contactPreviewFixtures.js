@@ -67,9 +67,9 @@ const seedCalls = [
   ...Array.from({length: 8}, (_, index) => ({ call_id: "preview-long-call-"+index, call_contact_fk: long.contact_id, call_subject: "Stakeholder alignment and implementation discussion "+(index+1), call_description: "Reviewed regional operational requirements, integration dependencies, reporting ownership and stakeholder feedback. Documented next steps and confirmed the implementation plan. ".repeat(index%3+1).trim(), call_created_at: new Date(Date.UTC(2026,10,16+index,9)).toISOString(), user: PREVIEW_USER })),
 ];
 const seedTasks = [
-  { task_id: "preview-task-1", task_contact_fk: full.contact_id, task_subject: "Prepare technical proposal", task_description: "Prepare architecture, implementation milestones and estimated project costs.", task_priority: "HIGH", task_status: "IN_PROGRESS", task_due_date: "2026-11-27T05:30:00.000Z", task_created_at: "2026-11-23T06:20:00.000Z", user: PREVIEW_USER },
-  { task_id: "preview-task-2", task_contact_fk: full.contact_id, task_subject: "Schedule product demonstration", task_description: "Arrange a demonstration for the operations and IT teams.", task_priority: "NORMAL", task_status: "PENDING", task_due_date: "2026-11-30T08:30:00.000Z", task_created_at: "2026-11-24T06:00:00.000Z", user: PREVIEW_USER },
-  { task_id: "preview-task-3", task_contact_fk: long.contact_id, task_subject: "Consolidate regional stakeholder feedback and finalize delivery roadmap", task_description: "Summarize requirements and identify unresolved dependencies.", task_priority: "LOW", task_status: "PENDING", task_created_at: "2026-11-24T07:00:00.000Z", user: PREVIEW_USER },
+  { task_id: "preview-task-1", task_user_fk: PREVIEW_USER.user_id, task_progress: 0, task_updates: [], task_contact_fk: full.contact_id, task_subject: "Prepare technical proposal", task_description: "Prepare architecture, implementation milestones and estimated project costs.", task_priority: "HIGH", task_status: "IN_PROGRESS", task_due_date: "2026-11-27T05:30:00.000Z", task_created_at: "2026-11-23T06:20:00.000Z", user: PREVIEW_USER },
+  { task_id: "preview-task-2", task_user_fk: PREVIEW_USER.user_id, task_progress: 0, task_updates: [], task_contact_fk: full.contact_id, task_subject: "Schedule product demonstration", task_description: "Arrange a demonstration for the operations and IT teams.", task_priority: "NORMAL", task_status: "TODO", task_due_date: "2026-11-30T08:30:00.000Z", task_created_at: "2026-11-24T06:00:00.000Z", user: PREVIEW_USER },
+  { task_id: "preview-task-3", task_user_fk: PREVIEW_USER.user_id, task_progress: 0, task_updates: [], task_contact_fk: long.contact_id, task_subject: "Consolidate regional stakeholder feedback and finalize delivery roadmap", task_description: "Summarize requirements and identify unresolved dependencies.", task_priority: "LOW", task_status: "TODO", task_created_at: "2026-11-24T07:00:00.000Z", user: PREVIEW_USER },
 ];
 
 const ok = data => ({ success:true, data });
@@ -127,12 +127,15 @@ export function createContactPreviewStore({ now = () => new Date().toISOString()
     const query = String(params.search||params.q||"").toLowerCase();
     const contactRoute = /^\/api\/contacts\/([^/]+)$/.exec(path);
     const contact = contactRoute ? contactById(decodeURIComponent(contactRoute[1])) : null;
+    const taskRoute = /^\/api\/tasks\/([^/]+)$/.exec(path);
+    const task = taskRoute ? tasks.find(t=>t.task_id===decodeURIComponent(taskRoute[1])) : null;
     if (method!=="GET" && failNext) { failNext=false; return fail("Simulated preview failure. Your data was not changed."); }
     if (method==="GET") {
       if (path==="/api/contacts") return paginate(contacts.filter(c=>matches(c,query)),params);
       if (contactRoute) return contact ? ok(contact) : fail("Contact not found");
       if (path==="/api/calls") return calls.filter(c=>!params.contact_id||c.call_contact_fk===params.contact_id).sort((a,b)=>b.call_created_at.localeCompare(a.call_created_at));
-      if (path==="/api/tasks") return paginate(tasks.filter(t=>!params.contact_id||t.task_contact_fk===params.contact_id).sort((a,b)=>b.task_created_at.localeCompare(a.task_created_at)),params);
+      if (taskRoute) return task ? ok(task) : fail("Task not found");
+      if (path==="/api/tasks") return paginate(tasks.filter(t=>!params.contact_id||t.task_contact_fk===params.contact_id).sort((a,b)=>b.task_created_at.localeCompare(a.task_created_at)).map(t=>Object.fromEntries(Object.entries(t).filter(([key])=>key!=="task_updates"))),params);
       if (path==="/api/accounts") return paginate([account],params);
       if (path==="/api/campaigns") return paginate(campaigns,params);
       if (path==="/api/projects") return paginate([project],params);
@@ -160,7 +163,17 @@ export function createContactPreviewStore({ now = () => new Date().toISOString()
     }
     if (method==="POST" && path==="/api/tasks") {
       if (!contactById(payload.task_contact_fk)||!String(payload.task_subject||"").trim()||!["LOW","NORMAL","HIGH"].includes(payload.task_priority)) return fail("Contact, subject and valid priority are required.");
-      const record={...payload,task_id:id("task"),task_user_fk:PREVIEW_USER.user_id,task_status:"PENDING",task_created_at:now(),user:PREVIEW_USER}; tasks.push(record); return {success:true,message:"Task created",...record};
+      const record={...payload,task_id:id("task"),task_user_fk:PREVIEW_USER.user_id,task_status:"TODO",task_progress:0,task_completed_at:null,task_updates:[],task_created_at:now(),user:PREVIEW_USER}; tasks.push(record); return {success:true,message:"Task created",...record};
+    }
+    if ((method==="PATCH" || method==="PUT") && taskRoute) {
+      if(!task)return fail("Task not found");
+      const status=payload.task_status;
+      if(!["TODO","IN_PROGRESS","BLOCKED","COMPLETED"].includes(status) || Object.keys(payload).some(key=>key!=="task_status"))return fail("Invalid preview task status patch.");
+      const changed=status!==task.task_status;
+      const updated={...task,task_status:status,task_completed_at:status==="COMPLETED" ? task.task_completed_at || now() : null,
+        task_updates:changed ? [{previous_status:task.task_status,new_status:status,previous_progress:task.task_progress,new_progress:task.task_progress,created_at:now(),user:PREVIEW_USER},...(task.task_updates||[])] : task.task_updates||[]};
+      tasks=tasks.map(t=>t===task?updated:t);
+      return {success:true,message:"Task updated",...updated,data:updated};
     }
     return fail("This API is outside the contact preview: "+method+" "+path);
   }

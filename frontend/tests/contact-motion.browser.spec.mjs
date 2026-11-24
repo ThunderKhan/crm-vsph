@@ -109,3 +109,32 @@ for (const reducedMotion of ["no-preference","reduce"]) {
     await expect(more).toBeFocused();
   });
 }
+
+test("task completion is confirmed by API, persists across filters and preserves state on failure",async({page})=>{
+  await page.goto(url);
+  const row=page.locator(".cw-timeline-item").filter({has:page.getByRole("heading",{name:"Schedule product demonstration",exact:true})});
+  const check=row.getByRole("checkbox",{name:"Complete task: Schedule product demonstration"});
+  await expect(row.getByText("Pending",{exact:true})).toHaveCSS("color","rgb(180, 35, 24)");
+  await expect(check).not.toBeChecked();
+  await expect(page.getByRole("button",{name:"Log call",exact:true})).toHaveCount(0);
+  await page.getByRole("button",{name:"Log a call",exact:true}).click();
+  await expect(page.getByRole("button",{name:"Save call",exact:true}).locator(".cw-save-glyph")).toHaveCount(0);
+  await expect(page.getByText("Recorded by Arjun Mehta",{exact:true})).toHaveCount(0);
+  await page.getByRole("button",{name:"Cancel",exact:true}).click();
+  await page.getByRole("button",{name:"Fail next write",exact:true}).click();
+  await check.click();
+  await expect(row.getByRole("alert")).toContainText("Simulated preview failure");
+  await expect(check).not.toBeChecked();
+  await check.click();
+  await expect(check).toBeChecked();
+  await expect(row.getByText("Completed",{exact:true})).toHaveCSS("color","rgb(22, 101, 52)");
+  await expect(row.getByText(/Completed by Arjun Mehta/)).toBeVisible();
+  await expect(row).toHaveAttribute("data-completed","true");
+  await page.getByRole("button",{name:"Calls",exact:true}).click();
+  await page.getByRole("button",{name:"Tasks",exact:true}).click();
+  await expect(check).toBeChecked();
+  await check.click();
+  await expect(check).not.toBeChecked();
+  await expect(row.getByText("In progress",{exact:true})).toBeVisible();
+  await expect(row.getByText(/Completed by Arjun Mehta/)).toHaveCount(0);
+});

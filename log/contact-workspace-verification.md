@@ -89,3 +89,7 @@ Run `npm run test:contact-motion` alongside existing preview/workspace tests. Fo
 ### Dialog focus regression — local evidence, 24 November 2026
 
 At commit `8aeface`, local Node tests passed 17/17 and Vite built successfully (505ms; non-blocking bundle-size warning). Browser tests passed 2/3: selection/composer and mobile/reduced motion passed; edit dialog Cancel failed `toBeFocused()` after dismissal. The fix closes native dialogs during layout cleanup and explicitly restores the recorded opener after the modal unmounts. Original regression test retained; two additional cases exercise Escape, close icon, campaign/delete cancellation with normal and reduced motion. Rerun `npx playwright test tests/contact-motion.browser.spec.mjs --workers=1` with Vite running; expected 5 tests. These browser results have not yet been verified after the fix.
+
+### Visual feedback round 1
+
+Local browser results at `f49e2d3`: 5/5 passed (15.5s), including both motion preferences and original focus regression. New changes need local rerun: verify centered idle save label, right-aligned footer, no duplicate header call action, red Pending and green Completed, checked state only on confirmed API success, preserved state on failure, audited completion actor, filter persistence, reopening, permission/transition guards and reduced motion. Added two motion utility cases, one preview fixture case and one browser case; expected totals 20 utility and 6 browser tests. Live API validation remains separate.
