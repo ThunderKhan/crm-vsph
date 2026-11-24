@@ -65,3 +65,9 @@ When backend credentials are unavailable, follow [contact-preview.md](contact-pr
 - [ ] Call subject/outcome, call notes and task subject show their required asterisks inline with label text; native required validation still works.
 - [ ] No top-right composer collapse toggle and no Reset button; Cancel closes each composer without an API mutation, restores quick-action focus and preserves draft when reopened.
 - [ ] Cancel disabled during save; after a failed save, Cancel remains available. The same behavior appears in the seeded preview and the real workspace.
+
+### Contact summary alignment checks
+
+- [ ] Full, reference and long-content fixtures show the same label and value start positions across all six summary rows; no right-aligned ragged text.
+- [ ] Email and phone remain on a single line, showing an ellipsis only if necessary. Hover displays the complete value, copy returns the complete value, and expanded details expose readable professional email and mobile values. The underlying mailto/tel destinations are unchanged.
+- [ ] Long account/designation/campaign text wraps naturally without horizontal overflow. Verify at desktop, laptop and narrow mobile widths, including copy focus and failed clipboard feedback.

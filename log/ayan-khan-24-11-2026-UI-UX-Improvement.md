@@ -187,3 +187,7 @@ Local preview screenshots revealed divergence from the approved visual reference
 ## 10. Activity composer refinement — 24 November 2026
 
 Local visual feedback: required asterisks appeared on their own grid row. Wrap each required label and its indicator in one inline text element; preserve native required validation and use restrained accessible red for the indicator. Replace the composer Reset action with Cancel, and remove the redundant top-right collapse control. Cancel closes the composer, restores focus to the selected quick action, clears transient messages, and preserves the unsaved per-mode draft for reopening (no API call). Disable cancellation while a save is pending. Apply to call, task and email composer modes in the shared component, including preview. No changes to the design system or backend.
+
+## 11. Contact summary alignment — 24 November 2026
+
+Local feedback identified ragged right-aligned values and awkward mid-address line breaks. Use one fixed/proportional label track and one flexible left-aligned value track across every summary row. Email and phone use single-line ellipsis only when needed, with their full underlying link and copy value intact, a native title on the text, and fully readable professional email/mobile in expanded details. Non-identifier text such as account, designation and campaign wraps normally when needed; copy controls retain 44px targets. Do not alter the shared design standard or backend.

@@ -20,7 +20,7 @@ export function Expandable({ open, id, children, className = "" }) {
   </div>;
 }
 
-function Property({ label, value, href, to, copy = false, fallback = "Not provided", external = false }) {
+function Property({ label, value, href, to, copy = false, fallback = "Not provided", external = false, singleLine = false }) {
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const hasValue = present(value);
@@ -37,13 +37,13 @@ function Property({ label, value, href, to, copy = false, fallback = "Not provid
     <dt>{label}</dt>
     <dd className={!hasValue ? "cw-muted" : ""}>
       <div className="cw-property-value">
-        {hasValue && to ? <Link to={to}>{value}</Link> : hasValue && href ?
-          <a href={href} target={external ? "_blank" : undefined} rel={external ? "noopener noreferrer" : undefined}>{value}{external && <ExternalLink size={14} aria-hidden="true" />}</a> :
-          <span>{hasValue ? String(value) : fallback}</span>}
-        {copy && hasValue && <button type="button" className="cw-icon" aria-label={copied ? `${label} copied` : `Copy ${label}`} title={copied ? "Copied" : "Copy"} onClick={copyValue}>{copied ? <Check size={16} /> : <Copy size={16} />}</button>}
+        {hasValue && to ? <Link className="cw-property-text" to={to}>{value}</Link> : hasValue && href ?
+          <a className={`cw-property-text${singleLine ? " cw-property-single-line" : ""}`} href={href} title={singleLine ? String(value) : undefined} target={external ? "_blank" : undefined} rel={external ? "noopener noreferrer" : undefined}>{value}{external && <ExternalLink size={14} aria-hidden="true" />}</a> :
+          <span className={`cw-property-text${singleLine && hasValue ? " cw-property-single-line" : ""}`} title={singleLine && hasValue ? String(value) : undefined}>{hasValue ? String(value) : fallback}</span>}
+        {copy && hasValue && <button type="button" className="cw-icon" aria-label={copied ? `${label} copied` : `Copy ${label}`} title={copied ? "Copied" : `Copy ${label}`} onClick={copyValue}>{copied ? <Check size={16} /> : <Copy size={16} />}</button>}
       </div>
       {copy && <span className="cw-sr" role="status">{copied ? `${label} copied` : ""}</span>}
-      {copyError && <span role="alert" className="cw-error-text">Could not copy. Select the value to copy it manually.</span>}
+      {copyError && <span role="alert" className="cw-error-text">{singleLine ? "Could not copy. Open all contact details to select the full value." : "Could not copy. Select the value to copy it manually."}</span>}
     </dd>
   </div>;
 }
@@ -72,8 +72,8 @@ export default function ContactProperties({ contact: c }) {
     <h2 id="contact-properties-title" className="cw-panel-heading">Contact details</h2>
     <dl className="cw-property-list cw-summary-properties">
       {fields([
-        ["Email", email, {href: emailLink(email), copy: true}],
-        ["Phone", phone, {href: phoneLink(phone), copy: true}],
+        ["Email", email, {href: emailLink(email), copy: true, singleLine: true}],
+        ["Phone", phone, {href: phoneLink(phone), copy: true, singleLine: true}],
         ["Account", c.account?.account_name, {to: c.contact_account_fk ? `/v2/accounts?account_id=${encodeURIComponent(c.contact_account_fk)}` : null, fallback:"Not assigned"}],
         ["Designation", c.contact_designation],
         ["Contact owner", c.contact_owner?.user_name, {fallback:"Not assigned"}],
@@ -86,7 +86,7 @@ export default function ContactProperties({ contact: c }) {
       {fields([["Title",c.contact_title],["Department",c.contact_department],["Role",c.contact_role],["Reports to",c.contact_reportsto],["Industry",c.contact_industry?.industry_name],["Employee size",c.contact_employee_size],["Level",c.contact_level_field],["Segment",c.contact_segment],["Partner name",c.contact_partner_name],["Profile link",c.contact_profile_link,{href:safeWebLink(c.contact_profile_link),external:true}],["Navigator link",c.contact_navigator_link,{href:safeWebLink(c.contact_navigator_link),external:true}]])}
     </PropertyGroup>
     <PropertyGroup title="Additional information">
-      {fields([["Salutation",c.contact_salutation],["First name",c.contact_firstname],["Middle name",c.contact_middlename],["Last name",c.contact_lastname],["Suffix",c.contact_suffix],["TPID",c.contact_tpid],["Personal email",c.contact_personal_email,{href:emailLink(c.contact_personal_email),copy:true}],["Phone",c.contact_phone,{href:phoneLink(c.contact_phone)}],["Alternate number",c.contact_alternate_number,{href:phoneLink(c.contact_alternate_number)}],["Landline",c.contact_landline_number,{href:phoneLink(c.contact_landline_number)}],["Fax number",c.contact_fax_number],["Contact status",humanize(c.contact_status)],["Call status",humanize(c.contact_call_status)],["Email status",humanize(c.contact_email_status)],["Number status",humanize(c.contact_phone_status)]])}
+      {fields([["Salutation",c.contact_salutation],["First name",c.contact_firstname],["Middle name",c.contact_middlename],["Last name",c.contact_lastname],["Suffix",c.contact_suffix],["TPID",c.contact_tpid],["Professional email",c.contact_professional_email,{href:emailLink(c.contact_professional_email),copy:true}],["Mobile number",c.contact_mobile,{href:phoneLink(c.contact_mobile),copy:true}],["Personal email",c.contact_personal_email,{href:emailLink(c.contact_personal_email),copy:true}],["Phone",c.contact_phone,{href:phoneLink(c.contact_phone)}],["Alternate number",c.contact_alternate_number,{href:phoneLink(c.contact_alternate_number)}],["Landline",c.contact_landline_number,{href:phoneLink(c.contact_landline_number)}],["Fax number",c.contact_fax_number],["Contact status",humanize(c.contact_status)],["Call status",humanize(c.contact_call_status)],["Email status",humanize(c.contact_email_status)],["Number status",humanize(c.contact_phone_status)]])}
     </PropertyGroup>
     <PropertyGroup title="Billing address">{address(billing,"billing")}</PropertyGroup>
     <PropertyGroup title="Shipping address">{address(shipping,"shipping")}</PropertyGroup>
