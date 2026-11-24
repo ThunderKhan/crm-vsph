@@ -1,0 +1,14 @@
+name: Keep CRM backend awake
+
+on:
+  schedule:
+    # Every 14 minutes prevents Render free tier from sleeping
+    - cron: "*/14 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health endpoint
+        run: curl -fsS --max-time 30 https://crm-vsph.onrender.com/health || true

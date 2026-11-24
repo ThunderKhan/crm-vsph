@@ -86,6 +86,10 @@ app.get("/", (req, res) => {
   res.send("CRM API Running");
 });
 
+app.get("/health", (req, res) => {
+  res.status(200).send("OK");
+});
+
 export { app };
 
 // Only listen when this file is the process entry point, so tests can import
