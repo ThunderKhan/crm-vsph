@@ -72,3 +72,40 @@ test("mobile, loading and reduced motion",async({page})=>{
   await page.getByRole("button",{name:"Professional information",exact:true}).click();
   await expect(page.getByText("Executive Vice President of International Operations and Strategic Partnerships",{exact:true})).toBeVisible();
 });
+
+for (const reducedMotion of ["no-preference","reduce"]) {
+  test(`dialog dismissal restores the real opener (${reducedMotion})`,async({page})=>{
+    await page.emulateMedia({reducedMotion});
+    await page.goto(url);
+    await expect(page.getByRole("heading",{name:/Priya Anjali Kapoor/})).toBeVisible();
+    const edit=page.getByRole("button",{name:"Edit contact",exact:true});
+    const more=page.getByRole("button",{name:"More contact actions",exact:true});
+    const dialog=page.getByRole("dialog");
+
+    await edit.click();
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toHaveCount(0);
+    await expect(edit).toBeFocused();
+
+    await edit.click();
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button",{name:"Close dialog",exact:true}).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(edit).toBeFocused();
+
+    await more.click();
+    await page.getByRole("menuitem",{name:"Add to campaign",exact:true}).click();
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button",{name:"Cancel",exact:true}).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(more).toBeFocused();
+
+    await more.click();
+    await page.getByRole("menuitem",{name:"Delete contact",exact:true}).click();
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button",{name:"Cancel",exact:true}).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(more).toBeFocused();
+  });
+}

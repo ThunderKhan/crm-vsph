@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeft, MoreHorizontal, Phone, CheckCircle, FileText, Plus, Copy, Trash2, UserPlus } from "lucide-react";
 import toast from "react-hot-toast";
 import { api } from "../utils/api";
@@ -50,9 +50,9 @@ function MoreActions({ canEdit, canDelete, onCampaign, onDelete, code }) {
   return <div className="cw-menu-anchor" ref={container} onKeyDown={keyDown}>
     <Tooltip text={copied ? "Contact ID copied" : "More contact actions"}><button type="button" className="cw-button cw-icon" ref={trigger} aria-label="More contact actions" aria-haspopup="menu" aria-expanded={open} aria-controls={id} onClick={() => open ? close(true) : openMenu()} onKeyDown={e => { if (["ArrowDown","ArrowUp"].includes(e.key) && !open) { e.stopPropagation(); e.preventDefault(); openMenu(e.key === "ArrowUp"); } }}><span className="cw-more-feedback" data-copied={copied}><MoreHorizontal size={20} className="cw-more-glyph" aria-hidden="true"/><CopyGlyph copied={copied}/></span></button></Tooltip>
     <div id={id} role="menu" aria-label="Contact actions" className="cw-menu" data-open={open} data-align={align} inert={!open} ref={menu}>
-      {canEdit && <button type="button" role="menuitem" onClick={() => { close(true); onCampaign(); }}><UserPlus size={16}/> Add to campaign</button>}
+      {canEdit && <button type="button" role="menuitem" onClick={() => { close(true); onCampaign(trigger.current); }}><UserPlus size={16}/> Add to campaign</button>}
       {code && <button type="button" role="menuitem" onClick={async () => { close(true); if (await copyId()) toast.success("Contact ID copied",{id:"cw-copy-id",duration:1800}); else toast.error("Could not copy contact ID",{id:"cw-copy-id"}); }}><Copy size={16}/> Copy contact ID</button>}
-      {canDelete && <button type="button" role="menuitem" className="cw-danger-text" onClick={() => { close(true); onDelete(); }}><Trash2 size={16}/> Delete contact</button>}
+      {canDelete && <button type="button" role="menuitem" className="cw-danger-text" onClick={() => { close(true); onDelete(trigger.current); }}><Trash2 size={16}/> Delete contact</button>}
     </div>
   </div>;
 }
@@ -60,7 +60,8 @@ function MoreActions({ canEdit, canDelete, onCampaign, onDelete, code }) {
 function DeleteDialog({ name, onConfirm, onClose, pending, error }) {
   const ref = useRef(null), title = useId();
   const {closing,close}=useDialogExit(onClose);
-  useEffect(() => {
+  // Close before React removes the native dialog, releasing its modal focus scope.
+  useLayoutEffect(() => {
     const dialog = ref.current;
     if (dialog && !dialog.open) dialog.showModal();
     return () => { if (dialog?.open) dialog.close(); };
@@ -120,7 +121,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const [savedMode,setSavedMode] = useState(null), [newActivity,setNewActivity] = useState(null);
   const [pending,setPending] = useState(null), [saveError,setSaveError] = useState(""), [feedback,setFeedback] = useState("");
   const [edit,setEdit] = useState(false), [focusCampaign,setFocusCampaign] = useState(false), [deleting,setDeleting] = useState(false), [deletePending,setDeletePending] = useState(false), [deleteError,setDeleteError] = useState("");
-  const editSaved=useRef(false);
+  const editSaved=useRef(false), dialogOpener=useRef(null);
   const composerId = useId(), composer = useRef(null), quickActions = useRef(null), saveLock = useRef(false), deleteLock = useRef(false);
   const canEdit = canDoAction("CONTACTS","EDIT"), canDelete = canDoAction("CONTACTS","DELETE"), canCall = canDoAction("CONTACTS","CREATE");
   const canAssignCampaign = canEdit && hasModule("CAMPAIGNS") && canDoAction("CAMPAIGNS","VIEW");
@@ -129,6 +130,15 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
   const endpoint = `/api/contacts/${encodeURIComponent(contactId)}`;
   const currentUserId = readSessionValue("vsph_user_id") || undefined;
   const currentUserName = readSessionValue("vsph_user_name") || "Unknown user";
+  // The opener is captured from the actual action, not document.activeElement
+  // (which can already be inside an autofocused dialog). Restore after the
+  // closing dialog has been removed and its modal focus scope released.
+  useLayoutEffect(() => {
+    if (edit || deleting) return;
+    const opener=dialogOpener.current;
+    dialogOpener.current=null;
+    if (opener?.isConnected && !opener.disabled) opener.focus({preventScroll:true});
+  }, [edit,deleting]);
   useEffect(() => {
     if (!isOpen || !contactId) return;
     let cancelled = false;
@@ -245,9 +255,9 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged })
       <section className="cw-panel cw-identity">
         <div className="cw-identity-main"><div className="cw-avatar" aria-hidden="true">{initials}</div><div className="cw-identity-text"><h1>{name}</h1><div className="cw-identity-meta"><span>{contact.contact_code || "No record code"}</span></div></div></div>
         <div className="cw-identity-side"><div className="cw-actions">
-          {canEdit && <button type="button" className="cw-button" onClick={()=>{setFocusCampaign(false);setEdit(true);}}>Edit contact</button>}
+          {canEdit && <button type="button" className="cw-button" onClick={event=>{dialogOpener.current=event.currentTarget;setFocusCampaign(false);setEdit(true);}}>Edit contact</button>}
           {canCall && (!mode || tab !== "overview") && <button type="button" className={`cw-button ${tab !== "overview" ? "cw-primary" : ""}`} onClick={()=>openComposer("call")} disabled={!!pending}><Plus size={16}/> Log call</button>}
-          {(canAssignCampaign || canDelete || contact.contact_code) && <MoreActions canEdit={canAssignCampaign} canDelete={canDelete} code={contact.contact_code} onCampaign={()=>{setFocusCampaign(true);setEdit(true);}} onDelete={()=>{setDeleteError("");setDeleting(true);}}/>}
+          {(canAssignCampaign || canDelete || contact.contact_code) && <MoreActions canEdit={canAssignCampaign} canDelete={canDelete} code={contact.contact_code} onCampaign={opener=>{dialogOpener.current=opener;setFocusCampaign(true);setEdit(true);}} onDelete={opener=>{dialogOpener.current=opener;setDeleteError("");setDeleting(true);}}/>}
         </div></div>
       </section>
       <SlidingTabs className="cw-main-tabs" label="Contact workspace views" options={[["overview","Overview"],["opportunities","Opportunities"]]} value={tab} onChange={value=>{setNewActivity(null);setTab(value);}}/>

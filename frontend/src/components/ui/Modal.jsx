@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef } from 'react';
+import React, { useLayoutEffect, useId, useRef } from 'react';
 import { X } from 'lucide-react';
 
 const Modal = ({ 
@@ -15,7 +15,9 @@ const Modal = ({
 }) => {
   const dialogRef = useRef(null);
   const titleId = useId();
-  useEffect(() => {
+  // Layout cleanup runs while the native dialog is still connected. Passive
+  // cleanup after unmount can lose native focus restoration.
+  useLayoutEffect(() => {
     if (!workspaceMotion || !isOpen) return;
     const dialog = dialogRef.current;
     if (dialog && !dialog.open) dialog.showModal();
