@@ -552,7 +552,9 @@ test("CRM email template preview and simulated send retain drafts on failure",as
   await expect(dialog.getByLabel("Message",{exact:true})).toHaveValue("Thank you, Priya.");
   await dialog.getByRole("button",{name:"Send email",exact:true}).click();
   await expect(dialog.getByRole("alert")).toContainText("Simulated preview failure");
+  await expect(dialog.getByRole("combobox",{name:"Email template",exact:true})).toHaveValue("preview-template");
   await expect(dialog.getByLabel("Subject",{exact:true})).toHaveValue("Hello Priya");
+  await expect(dialog.getByLabel("Message",{exact:true})).toHaveValue("Thank you, Priya.");
   await dialog.getByRole("button",{name:"Send email",exact:true}).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByText("Email sent.",{exact:true})).toBeVisible();

@@ -537,7 +537,7 @@ export default function ConDetailView({ isOpen, onClose, contactId, onChanged, n
                   <label>Email template<select aria-label="Email template" value={email.templateId} onChange={e=>selectTemplate(e.target.value)}><option value="">Write a message</option>{emailTemplates.map(t=><option key={t.email_template_id} value={t.email_template_id}>{t.name}</option>)}</select></label>
                   {templateError&&<p className="cw-muted" role="status">{templateError} You can still write a message.</p>}
                   <label>Subject<input value={selectedTemplate?interpolate(selectedTemplate.subject):email.subject} readOnly={!!selectedTemplate} onChange={e=>setEmail({...email,subject:e.target.value})} placeholder="Email subject"/></label>
-                  <label>Message<textarea rows={5} value={selectedTemplate?interpolate(selectedTemplate.body_text||selectedTemplate.body_html):email.body} readOnly={!!selectedTemplate} onChange={e=>setEmail({...email,body:e.target.value})} placeholder="Write your email…"/></label>
+                  <label>Message<textarea aria-label="Message" rows={5} value={selectedTemplate?interpolate(selectedTemplate.body_text||selectedTemplate.body_html):email.body} readOnly={!!selectedTemplate} onChange={e=>setEmail({...email,body:e.target.value})} placeholder="Write your email…"/></label>
                   {selectedTemplate&&<p className="cw-muted">Template preview. CRM sends the saved template; choose Write a message for custom text.</p>}
                   <p className="cw-muted">Sends email through CRM. Sending does not create a timeline entry.</p>
                 </>}
